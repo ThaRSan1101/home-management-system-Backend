@@ -1,6 +1,10 @@
 <?php
 require 'db.php';
 
+// Include JWT library
+require_once __DIR__ . '/php-jwt/php-jwt-main/src/JWT.php';
+use Firebase\JWT\JWT;
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
@@ -33,10 +37,20 @@ if ($user['disable_status']) {
     exit;
 }
 
-// Success: return user_type for frontend to redirect
+$key = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4'; // Strong secret key
+$payload = [
+    'user_id' => $user['user_id'],
+    'email' => $user['email'],
+    'user_type' => $user['user_type'],
+    'exp' => time() + (60 * 60 * 24) // 1 day expiration
+];
+$jwt = JWT::encode($payload, $key, 'HS256');
+
+// Success: return JWT and user info
 echo json_encode([
     'status' => 'success',
     'message' => 'Login successful.',
+    'token' => $jwt,
     'user_type' => $user['user_type'],
     'name' => $user['name'],
     'email' => $user['email'],
