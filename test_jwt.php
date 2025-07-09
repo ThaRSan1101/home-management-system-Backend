@@ -9,8 +9,11 @@ $token = '';
 
 if (isset($_GET['token'])) {
     $token = $_GET['token'];
+} elseif (isset($_COOKIE['access_token'])) {
+    $token = $_COOKIE['access_token'];
 } else {
     echo "<form>Paste JWT token: <input name='token' style='width:500px'><input type='submit'></form>";
+    echo "<br>Or login and access this page with a valid cookie.";
     exit;
 }
 

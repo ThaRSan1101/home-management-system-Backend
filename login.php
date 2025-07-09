@@ -1,11 +1,11 @@
 <?php
 require 'db.php';
-
-// Include JWT library
 require_once __DIR__ . '/php-jwt/php-jwt-main/src/JWT.php';
+require_once __DIR__ . '/php-jwt/php-jwt-main/src/Key.php';
 use Firebase\JWT\JWT;
 
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
 
@@ -31,26 +31,33 @@ if (!$user || !password_verify($password, $user['password'])) {
     exit;
 }
 
-// Check if user is disabled
 if ($user['disable_status']) {
     echo json_encode(['status' => 'error', 'message' => 'Your account has been disabled. Please contact support.']);
     exit;
 }
 
-$key = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4'; // Strong secret key
+$key = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
 $payload = [
     'user_id' => $user['user_id'],
     'email' => $user['email'],
     'user_type' => $user['user_type'],
-    'exp' => time() + (60 * 60 * 24) // 1 day expiration
+    'exp' => time() + (60 * 60 * 24)
 ];
 $jwt = JWT::encode($payload, $key, 'HS256');
 
-// Success: return JWT and user info
+$cookieOptions = [
+    'expires' => time() + (60 * 60 * 24),
+    'path' => '/',
+    'domain' => '',
+    'secure' => false,
+    'httponly' => true,
+    'samesite' => 'Lax'
+];
+setcookie('access_token', $jwt, $cookieOptions);
+
 echo json_encode([
     'status' => 'success',
     'message' => 'Login successful.',
-    'token' => $jwt,
     'user_type' => $user['user_type'],
     'name' => $user['name'],
     'email' => $user['email'],
