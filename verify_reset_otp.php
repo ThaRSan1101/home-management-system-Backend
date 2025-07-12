@@ -10,7 +10,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 // Sanitize input
 $email = isset($data['email']) ? strtolower(trim($data['email'])) : '';
-$otp = isset($data['code']) ? trim($data['code']) : ''; // fixed: match key 'code'
+$otp = isset($data['code']) ? trim($data['code']) : '';
 
 if (!$email || !$otp) {
     echo json_encode(['status' => 'error', 'message' => 'Email and OTP are required.']);
@@ -19,16 +19,14 @@ if (!$email || !$otp) {
 
 // Prepare and execute query to fetch the OTP
 $stmt = $conn->prepare("SELECT code FROM password_reset WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
+$stmt->execute([$email]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($result->num_rows === 0) {
+if (!$row) {
     echo json_encode(['status' => 'error', 'message' => 'Invalid or expired OTP.']);
     exit;
 }
 
-$row = $result->fetch_assoc();
 $storedOtp = $row['code'];
 
 // Compare the OTPs

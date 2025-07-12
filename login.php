@@ -20,11 +20,8 @@ if (!$email || !$password) {
 }
 
 $stmt = $conn->prepare("SELECT user_id, name, email, password, user_type, disable_status FROM users WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
-$stmt->close();
+$stmt->execute([$email]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$user || !password_verify($password, $user['password'])) {
     echo json_encode(['status' => 'error', 'message' => 'Invalid email or password.']);

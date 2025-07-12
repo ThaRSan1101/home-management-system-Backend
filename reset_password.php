@@ -25,11 +25,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 // Verify OTP
 $stmt = $conn->prepare("SELECT * FROM password_reset WHERE email = ? AND code = ?");
-$stmt->bind_param("ss", $email, $otp);
-$stmt->execute();
-$result = $stmt->get_result();
-$row = $result->fetch_assoc();
-$stmt->close();
+$stmt->execute([$email, $otp]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$row) {
     echo json_encode([
@@ -42,23 +39,17 @@ if (!$row) {
 // Hash and update password
 $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
 $stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ?");
-$stmt->bind_param("ss", $hashedPassword, $email);
-$stmt->execute();
+$stmt->execute([$hashedPassword, $email]);
 
 // Optional: check if any row was updated
-if ($stmt->affected_rows === 0) {
+if ($stmt->rowCount() === 0) {
     echo json_encode(['status' => 'error', 'message' => 'Password reset failed. User may not exist.']);
-    $stmt->close();
     exit;
 }
 
-$stmt->close();
-
 // Delete OTP after successful password reset
 $stmt = $conn->prepare("DELETE FROM password_reset WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$stmt->close();
+$stmt->execute([$email]);
 
 echo json_encode(['status' => 'success', 'message' => 'Password changed successfully.']);
 exit;

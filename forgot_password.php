@@ -18,15 +18,11 @@ if (!$email) {
 
 // Check if email exists in users
 $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$stmt->store_result();
-if ($stmt->num_rows === 0) {
+$stmt->execute([$email]);
+if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
     echo json_encode(['status' => 'error', 'message' => 'No account found with that email.']);
-    $stmt->close();
     exit;
 }
-$stmt->close();
 
 // Generate OTP
 $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -34,9 +30,7 @@ $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
 // Store OTP in password_reset table
 $stmt = $conn->prepare("INSERT INTO password_reset (email, code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code=VALUES(code), expires_at=VALUES(expires_at)");
-$stmt->bind_param("sss", $email, $otp, $expires_at);
-$stmt->execute();
-$stmt->close();
+$stmt->execute([$email, $otp, $expires_at]);
 
 // Send OTP email
 $mail = new PHPMailer\PHPMailer\PHPMailer(true);

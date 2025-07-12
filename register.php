@@ -23,8 +23,14 @@ $fullName = $data['fullName'] ?? '';
 $phone = $data['phone'] ?? '';
 $address = $data['address'] ?? '';
 $password = $data['password'] ?? '';
-$nic = $data['nic'] ?? ''; // New field for NIC
-$userType = $data['userType'] ?? 'customer'; // Default to customer
+$nic = $data['nic'] ?? '';
+$userType = $data['userType'] ?? 'customer';
+
+// NIC validation: must be 12 digits or 9 digits followed by 'V' or 'v'
+if ($nic && !preg_match('/^(\d{12}|\d{9}[Vv])$/', $nic)) {
+    echo json_encode(['status' => 'error', 'message' => 'NIC must be 12 digits or 9 digits followed by V.']);
+    exit;
+}
 
 if (!$email || !$fullName || !$phone || !$address || !$password) {
     echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
@@ -33,52 +39,40 @@ if (!$email || !$fullName || !$phone || !$address || !$password) {
 
 // Check if email already exists in users table
 $checkStmt = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
-$checkStmt->bind_param("s", $email);
-$checkStmt->execute();
-$checkStmt->store_result();
-if ($checkStmt->num_rows > 0) {
+$checkStmt->execute([$email]);
+if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
     echo json_encode(['status' => 'error', 'message' => 'An account with this email already exists.']);
-    $checkStmt->close();
     exit;
 }
-$checkStmt->close();
 
 // Check if NIC already exists (if provided)
 if ($nic) {
     $checkNicStmt = $conn->prepare("SELECT user_id FROM users WHERE NIC = ?");
-    $checkNicStmt->bind_param("s", $nic);
-    $checkNicStmt->execute();
-    $checkNicStmt->store_result();
-    if ($checkNicStmt->num_rows > 0) {
+    $checkNicStmt->execute([$nic]);
+    if ($checkNicStmt->fetch(PDO::FETCH_ASSOC)) {
         echo json_encode(['status' => 'error', 'message' => 'An account with this NIC already exists.']);
-        $checkNicStmt->close();
         exit;
     }
-    $checkNicStmt->close();
 }
 
 // Generate 6-digit OTP
 $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-$expires_at = date('Y-m-d H:i:s', strtotime('+15 minutes')); // Increased to 15 minutes
+$expires_at = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
 // First, delete any existing OTPs for this email
 $deleteStmt = $conn->prepare("DELETE FROM otp WHERE email = ?");
-$deleteStmt->bind_param("s", $email);
-$deleteStmt->execute();
-$deleteStmt->close();
+$deleteStmt->execute([$email]);
 
 // Save new OTP to database
 $stmt = $conn->prepare("INSERT INTO otp (email, otp_code, purpose, expired_at) VALUES (?, ?, 'registration', ?)");
 if (!$stmt) {
-    echo json_encode(['status' => 'error', 'message' => 'Prepare failed: ' . $conn->error]);
+    echo json_encode(['status' => 'error', 'message' => 'Prepare failed: ' . $conn->errorInfo()[2]]);
     exit;
 }
-$stmt->bind_param("sss", $email, $otp, $expires_at);
-if (!$stmt->execute()) {
-    echo json_encode(['status' => 'error', 'message' => 'Execute failed: ' . $stmt->error]);
+if (!$stmt->execute([$email, $otp, $expires_at])) {
+    echo json_encode(['status' => 'error', 'message' => 'Execute failed: ' . $stmt->errorInfo()[2]]);
     exit;
 }
-$stmt->close();
 
 // Send OTP email
 $mail = new PHPMailer(true);
