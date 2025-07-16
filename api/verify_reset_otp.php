@@ -17,8 +17,8 @@ if (!$email || !$otp) {
     exit;
 }
 
-// Prepare and execute query to fetch the OTP
-$stmt = $conn->prepare("SELECT code FROM password_reset WHERE email = ?");
+// Prepare and execute query to fetch the OTP from otp table for password reset
+$stmt = $conn->prepare("SELECT otp_code FROM otp WHERE email = ? AND purpose = 'password_reset' ");
 $stmt->execute([$email]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -27,7 +27,7 @@ if (!$row) {
     exit;
 }
 
-$storedOtp = $row['code'];
+$storedOtp = $row['otp_code'];
 
 // Compare the OTPs
 if ($otp !== $storedOtp) {

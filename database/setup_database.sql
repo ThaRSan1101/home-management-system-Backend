@@ -29,14 +29,6 @@ CREATE TABLE otp (
     INDEX idx_email_purpose (email, purpose),
     INDEX idx_expired_at (expired_at)
 );
--- 3.2 password_reset
-CREATE TABLE password_reset (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(100) NOT NULL,
-    code VARCHAR(100) NOT NULL,
-    expires_at DATETIME NOT NULL,
-    UNIQUE KEY unique_email (email)
-);
 
 -- Step 4: Communication Table
 -- 4.1 message

@@ -28,8 +28,8 @@ if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
 $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
 $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
-// Store OTP in password_reset table
-$stmt = $conn->prepare("INSERT INTO password_reset (email, code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE code=VALUES(code), expires_at=VALUES(expires_at)");
+// Store OTP in otp table for password reset
+$stmt = $conn->prepare("INSERT INTO otp (email, otp_code, purpose, expired_at) VALUES (?, ?, 'password_reset', ?) ON DUPLICATE KEY UPDATE otp_code=VALUES(otp_code), expired_at=VALUES(expired_at)");
 $stmt->execute([$email, $otp, $expires_at]);
 
 // Send OTP email
