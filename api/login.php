@@ -19,7 +19,7 @@ if (!$email || !$password) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT user_id, name, email, password, user_type, disable_status FROM users WHERE email = ?");
+$stmt = $conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date FROM users WHERE email = ?");
 $stmt->execute([$email]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -58,6 +58,22 @@ echo json_encode([
     'user_type' => $user['user_type'],
     'name' => $user['name'],
     'email' => $user['email'],
-    'user_id' => $user['user_id']
+    'user_id' => $user['user_id'],
+    'user_details' => $user['user_type'] === 'customer' ? [
+        'fullName' => $user['name'],
+        'address' => $user['address'],
+        'phone' => $user['phone_number'],
+        'email' => $user['email'],
+        'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
+    ] : ($user['user_type'] === 'provider' ? [
+        'fullName' => $user['name'],
+        'address' => $user['address'],
+        'phone' => $user['phone_number'],
+        'email' => $user['email'],
+        'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
+    ] : ($user['user_type'] === 'admin' ? [
+        'fullName' => $user['name'],
+        'email' => $user['email']
+    ] : null))
 ]);
 ?> 
