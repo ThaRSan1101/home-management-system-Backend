@@ -1,14 +1,31 @@
 <?php
-$host = 'localhost';
-$user = 'root';
-$pass = ''; // or your MySQL password
-$db   = 'ServiceHub';
+/**
+ * Database Connection
+ */
 
-try {
-    $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-    // Set the PDO error mode to exception
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("DB Connection failed: " . $e->getMessage());
+class DBConnector {
+    private $host = 'localhost';
+    private $db = 'ServiceHub';
+    private $user = 'root';
+    private $pass = '';
+    //private $charset = 'utf8mb4'; // Uncomment and use if needed
+    private $pdo;
+
+    public function connect() {
+        $dsn = "mysql:host=$this->host;dbname=$this->db;";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        try {
+            $this->pdo = new PDO($dsn, $this->user, $this->pass, $options);
+        } catch (PDOException $e) {
+            throw new PDOException($e->getMessage(), (int)$e->getCode());
+        }
+
+        return $this->pdo;
+    }
 }
 ?>
