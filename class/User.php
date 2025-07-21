@@ -11,30 +11,30 @@ class User {
     /**
      * @var PDO Database connection
      */
-    private $conn;
+    protected $conn;
     private $jwtKey = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
 
     // User table columns as private properties
     /** @var int|null */
-    private $user_id;
+    protected $user_id;
     /** @var string|null */
-    private $name;
+    protected $name;
     /** @var string|null */
-    private $email;
+    protected $email;
     /** @var string|null */
-    private $password;
+    protected $password;
     /** @var string|null */
-    private $phone_number;
+    protected $phone_number;
     /** @var string|null */
-    private $address;
+    protected $address;
     /** @var string|null */
-    private $NIC;
+    protected $NIC;
     /** @var string|null */
-    private $user_type;
+    protected $user_type;
     /** @var bool|null */
-    private $disable_status;
+    protected $disable_status;
     /** @var string|null */
-    private $registered_date;
+    protected $registered_date;
 
     /**
      * User constructor.
@@ -50,7 +50,7 @@ class User {
     }
 
     public function login($email, $password) {
-        $stmt = $this->conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date FROM users WHERE email = ?");
+        $stmt = $this->conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date, NIC FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$user || !password_verify($password, $user['password'])) {
@@ -79,13 +79,15 @@ class User {
                 'address' => $user['address'],
                 'phone' => $user['phone_number'],
                 'email' => $user['email'],
-                'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
+                'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : '',
+                'nic' => $user['NIC'] ?? ''
             ] : ($user['user_type'] === 'provider' ? [
                 'fullName' => $user['name'],
                 'address' => $user['address'],
                 'phone' => $user['phone_number'],
                 'email' => $user['email'],
-                'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
+                'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : '',
+                'nic' => $user['NIC'] ?? ''
             ] : ($user['user_type'] === 'admin' ? [
                 'fullName' => $user['name'],
                 'email' => $user['email']
@@ -94,6 +96,9 @@ class User {
     }
 
     public function register($data) {
+        // Cleanup expired registration OTPs
+        $cleanupStmt = $this->conn->prepare("DELETE FROM otp WHERE purpose = 'registration' AND expired_at < NOW()");
+        $cleanupStmt->execute();
         $email = $data['email'] ?? '';
         $fullName = $data['fullName'] ?? '';
         $phone = $data['phone'] ?? '';
