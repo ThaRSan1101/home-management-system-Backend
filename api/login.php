@@ -1,5 +1,6 @@
 <?php
-require 'db.php';
+require_once 'db.php';
+require_once __DIR__ . '/../class/User.php';
 require_once __DIR__ . '/php-jwt/php-jwt-main/src/JWT.php';
 require_once __DIR__ . '/php-jwt/php-jwt-main/src/Key.php';
 use Firebase\JWT\JWT;
@@ -10,7 +11,6 @@ header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
-
 $email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
 
@@ -19,61 +19,21 @@ if (!$email || !$password) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date FROM users WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$conn = getDbConnection();
+$userObj = new User($conn);
+$result = $userObj->login($email, $password);
 
-if (!$user || !password_verify($password, $user['password'])) {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid email or password.']);
-    exit;
+if ($result['status'] === 'success') {
+    $jwt = $result['jwt'];
+    $cookieOptions = [
+        'expires' => time() + (60 * 60 * 24),
+        'path' => '/',
+        'domain' => '',
+        'secure' => false,
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ];
+    setcookie('access_token', $jwt, $cookieOptions);
 }
-
-if ($user['disable_status']) {
-    echo json_encode(['status' => 'error', 'message' => 'Your account has been disabled. Please contact support.']);
-    exit;
-}
-
-$key = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
-$payload = [
-    'user_id' => $user['user_id'],
-    'email' => $user['email'],
-    'user_type' => $user['user_type'],
-    'exp' => time() + (60 * 60 * 24)
-];
-$jwt = JWT::encode($payload, $key, 'HS256');
-
-$cookieOptions = [
-    'expires' => time() + (60 * 60 * 24),
-    'path' => '/',
-    'domain' => '',
-    'secure' => false,
-    'httponly' => true,
-    'samesite' => 'Lax'
-];
-setcookie('access_token', $jwt, $cookieOptions);
-
-echo json_encode([
-    'status' => 'success',
-    'message' => 'Login successful.',
-    'user_type' => $user['user_type'],
-    'name' => $user['name'],
-    'email' => $user['email'],
-    'user_id' => $user['user_id'],
-    'user_details' => $user['user_type'] === 'customer' ? [
-        'fullName' => $user['name'],
-        'address' => $user['address'],
-        'phone' => $user['phone_number'],
-        'email' => $user['email'],
-        'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
-    ] : ($user['user_type'] === 'provider' ? [
-        'fullName' => $user['name'],
-        'address' => $user['address'],
-        'phone' => $user['phone_number'],
-        'email' => $user['email'],
-        'joined' => isset($user['registered_date']) ? date('Y-m-d', strtotime($user['registered_date'])) : ''
-    ] : ($user['user_type'] === 'admin' ? [
-        'fullName' => $user['name'],
-        'email' => $user['email']
-    ] : null))
-]);
+echo json_encode($result);
 ?> 
