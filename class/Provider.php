@@ -47,16 +47,32 @@ class Provider extends User {
         $this->setPhoneNumber($data['phone_number'] ?? '');
         $this->setAddress($data['address'] ?? '');
         $this->setNIC($nic);
-        $stmt = $this->conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, NIC = ? WHERE user_id = ? AND user_type = 'provider'");
+        $disable_status = isset($data['disable_status']) ? (int)$data['disable_status'] : 0;
+        $stmt = $this->conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, NIC = ?, disable_status = ? WHERE user_id = ? AND user_type = 'provider'");
         $result = $stmt->execute([
             $this->getName(),
             $this->getEmail(),
             $this->getPhoneNumber(),
             $this->getAddress(),
             $this->getNIC(),
+            $disable_status,
             $data['user_id']
         ]);
-        if ($result) {
+        // Update provider table fields if present
+        $providerResult = true;
+        if (isset($data['provider_id'])) {
+            $description = $data['description'] ?? '';
+            $qualifications = $data['qualifications'] ?? '';
+            $status = $data['status'] ?? 'inactive';
+            $stmt2 = $this->conn->prepare("UPDATE provider SET description = ?, qualifications = ?, status = ? WHERE provider_id = ?");
+            $providerResult = $stmt2->execute([
+                $description,
+                $qualifications,
+                $status,
+                $data['provider_id']
+            ]);
+        }
+        if ($result && $providerResult) {
             return ['status' => 'success', 'message' => 'Profile updated successfully.'];
         } else {
             return ['status' => 'error', 'message' => 'Failed to update profile.'];
