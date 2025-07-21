@@ -27,11 +27,26 @@ class Provider extends User {
         if (!isset($data['user_id'])) {
             return ['status' => 'error', 'message' => 'User ID is required.'];
         }
+        $userId = $data['user_id'];
+        $email = $data['email'] ?? '';
+        $nic = $data['nic'] ?? '';
+        // Check for duplicate email (exclude current user)
+        $stmt = $this->conn->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
+        $stmt->execute([$email, $userId]);
+        if ($stmt->fetch()) {
+            return ['status' => 'error', 'message' => 'Email already exists'];
+        }
+        // Check for duplicate NIC (exclude current user)
+        $stmt = $this->conn->prepare("SELECT user_id FROM users WHERE NIC = ? AND user_id != ?");
+        $stmt->execute([$nic, $userId]);
+        if ($stmt->fetch()) {
+            return ['status' => 'error', 'message' => 'NIC already exists'];
+        }
         $this->setName($data['name'] ?? '');
-        $this->setEmail($data['email'] ?? '');
+        $this->setEmail($email);
         $this->setPhoneNumber($data['phone_number'] ?? '');
         $this->setAddress($data['address'] ?? '');
-        $this->setNIC($data['nic'] ?? '');
+        $this->setNIC($nic);
         $stmt = $this->conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, NIC = ? WHERE user_id = ? AND user_type = 'provider'");
         $result = $stmt->execute([
             $this->getName(),
