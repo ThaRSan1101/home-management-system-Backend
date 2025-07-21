@@ -1,5 +1,4 @@
 <?php
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 require_once __DIR__ . '/php-jwt/php-jwt-main/src/JWT.php';
 require_once __DIR__ . '/php-jwt/php-jwt-main/src/Key.php';
@@ -19,8 +18,7 @@ if (!$email || !$password) {
     exit;
 }
 
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->login($email, $password);
 
 if ($result['status'] === 'success') {

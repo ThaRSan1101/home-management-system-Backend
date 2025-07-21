@@ -1,5 +1,4 @@
 <?php
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 
 header("Access-Control-Allow-Origin: *");
@@ -11,8 +10,7 @@ if (!$data) {
     echo json_encode(['status' => 'error', 'message' => 'No data received.']);
     exit;
 }
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->verifyOtp($data);
 echo json_encode($result);
 

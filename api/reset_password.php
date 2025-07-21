@@ -1,5 +1,4 @@
 <?php
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 
 header("Access-Control-Allow-Origin: *");
@@ -14,7 +13,6 @@ if (!$email || !$otp || !$newPassword) {
     echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
     exit;
 }
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->resetPassword($email, $otp, $newPassword);
 echo json_encode($result);

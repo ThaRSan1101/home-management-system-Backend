@@ -1,7 +1,6 @@
 <?php
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 require_once 'PHPMailer/PHPMailer.php';
 require_once 'PHPMailer/Exception.php';
@@ -16,7 +15,6 @@ if (!$data) {
     echo json_encode(['status' => 'error', 'message' => 'No data received.']);
     exit;
 }
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->register($data);
 echo json_encode($result); 

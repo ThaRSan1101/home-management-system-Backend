@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../api/db.php';
 // User.php - OOP class for user authentication and management
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -7,11 +8,45 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class User {
+    /**
+     * @var PDO Database connection
+     */
     private $conn;
     private $jwtKey = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
 
-    public function __construct($dbConn) {
-        $this->conn = $dbConn;
+    // User table columns as private properties
+    /** @var int|null */
+    private $user_id;
+    /** @var string|null */
+    private $name;
+    /** @var string|null */
+    private $email;
+    /** @var string|null */
+    private $password;
+    /** @var string|null */
+    private $phone_number;
+    /** @var string|null */
+    private $address;
+    /** @var string|null */
+    private $NIC;
+    /** @var string|null */
+    private $user_type;
+    /** @var bool|null */
+    private $disable_status;
+    /** @var string|null */
+    private $registered_date;
+
+    /**
+     * User constructor.
+     * @param PDO|null $dbConn
+     */
+    public function __construct($dbConn = null) {
+        if ($dbConn) {
+            $this->conn = $dbConn;
+        } else {
+            $db = new DBConnector();
+            $this->conn = $db->connect();
+        }
     }
 
     public function login($email, $password) {

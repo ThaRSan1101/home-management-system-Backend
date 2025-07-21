@@ -1,5 +1,4 @@
 <?php
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 require_once 'PHPMailer/PHPMailer.php';
 require_once 'PHPMailer/Exception.php';
@@ -15,7 +14,6 @@ if (!$email) {
     echo json_encode(['status' => 'error', 'message' => 'Email is required.']);
     exit;
 }
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->forgotPassword($email);
 echo json_encode($result); 

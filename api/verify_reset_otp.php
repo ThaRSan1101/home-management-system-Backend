@@ -1,5 +1,4 @@
 <?php
-require_once 'db.php';
 require_once __DIR__ . '/../class/User.php';
 
 header("Access-Control-Allow-Origin: *");
@@ -13,7 +12,6 @@ if (!$email || !$otp) {
     echo json_encode(['status' => 'error', 'message' => 'Email and OTP are required.']);
     exit;
 }
-$conn = getDbConnection();
-$userObj = new User($conn);
+$userObj = new User();
 $result = $userObj->verifyResetOtp($email, $otp);
 echo json_encode($result);
