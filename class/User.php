@@ -106,6 +106,15 @@ class User {
         $password = $data['password'] ?? '';
         $nic = $data['nic'] ?? '';
         $userType = $data['userType'] ?? 'customer';
+
+        // Full name: only letters and spaces
+        if (!preg_match('/^[A-Za-z ]+$/', $fullName)) {
+            return ['status' => 'error', 'message' => 'Full name can only contain letters and spaces.'];
+        }
+        // Email: allow all domains, only valid format (letters, numbers, periods, underscores before @)
+        if (!preg_match('/^[a-zA-Z0-9._]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
+            return ['status' => 'error', 'message' => 'Enter a valid email address (only letters, numbers, periods, underscores before @, and a valid domain)'];
+        }
         if ($nic && !preg_match('/^(\d{12}|\d{9}[Vv])$/', $nic)) {
             return ['status' => 'error', 'message' => 'NIC must be 12 digits or 9 digits followed by V.'];
         }
