@@ -5,16 +5,24 @@ class Admin extends User {
     // Add admin-specific methods here
 
     public function addProvider($data) {
-        $name = $data['name'] ?? '';
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-        $phone = $data['phone'] ?? '';
-        $address = $data['address'] ?? '';
-        $nic = $data['nic'] ?? '';
-        $description = $data['description'] ?? '';
-        $qualification = $data['qualification'] ?? '';
+        $name = isset($data['name']) ? trim($data['name']) : '';
+        $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+        $email = isset($data['email']) ? strtolower(trim($data['email'])) : '';
+        $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+        // No password field from frontend; will generate random password below
+        $password = ''; // placeholder, not used
+        $phone = isset($data['phone']) ? trim($data['phone']) : '';
+        $phone = htmlspecialchars($phone, ENT_QUOTES, 'UTF-8');
+        $address = isset($data['address']) ? trim($data['address']) : '';
+        $address = htmlspecialchars($address, ENT_QUOTES, 'UTF-8');
+        $nic = isset($data['nic']) ? trim($data['nic']) : '';
+        $nic = htmlspecialchars($nic, ENT_QUOTES, 'UTF-8');
+        $description = isset($data['description']) ? trim($data['description']) : '';
+        $description = htmlspecialchars($description, ENT_QUOTES, 'UTF-8');
+        $qualification = isset($data['qualification']) ? trim($data['qualification']) : '';
+        $qualification = htmlspecialchars($qualification, ENT_QUOTES, 'UTF-8');
 
-        if (!$name || !$email || !$password || !$phone || !$address || !$nic) {
+        if (!$name || !$email || !$phone || !$address || !$nic) {
             return ['status' => 'error', 'message' => 'All fields are required.'];
         }
 
@@ -32,7 +40,9 @@ class Admin extends User {
         }
 
         // Insert into users table
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        // Generate random password for DB and email
+        $randomPassword = bin2hex(random_bytes(5)); // 10 chars, alphanumeric
+        $hashedPassword = password_hash($randomPassword, PASSWORD_DEFAULT);
         $stmt = $this->conn->prepare("INSERT INTO users (name, email, password, phone_number, address, NIC, user_type) VALUES (?, ?, ?, ?, ?, ?, 'provider')");
         $result = $stmt->execute([$name, $email, $hashedPassword, $phone, $address, $nic]);
         if (!$result) {
@@ -46,6 +56,12 @@ class Admin extends User {
         if (!$result2) {
             return ['status' => 'error', 'message' => 'Failed to add provider details.'];
         }
+
+        // Generate random password for email and update DB
+        $randomPassword = bin2hex(random_bytes(5)); // 10 chars, alphanumeric
+        $hashedRandomPassword = password_hash($randomPassword, PASSWORD_DEFAULT);
+        $stmt = $this->conn->prepare("UPDATE users SET password = ? WHERE user_id = ?");
+        $stmt->execute([$hashedRandomPassword, $userId]);
 
         $emailError = null;
         // Send welcome email
@@ -62,7 +78,7 @@ class Admin extends User {
             $mail->addAddress($email, $name);
             $mail->isHTML(true);
             $mail->Subject = 'Welcome to ServiceHub!';
-            $mail->Body = "<h3>Welcome to ServiceHub, $name!</h3><p>Your provider account has been created by the admin.</p><p><b>Username:</b> $email<br><b>Password:</b> $password</p><p>You can now log in and start accepting service requests.</p><p>Thank you,<br>ServiceHub Team</p>";
+            $mail->Body = "<h3>Welcome to ServiceHub, $name!</h3><p>Your provider account has been created by the admin.</p><p><b>Username:</b> $email<br><b>Password:</b> $randomPassword</p><p><b>Important:</b> Please change your password after logging in for the first time.</p><p>You can now log in and start accepting service requests.</p><p>Thank you,<br>ServiceHub Team</p>";
             $mail->send();
         } catch (\Exception $e) {
             $emailError = $mail->ErrorInfo;

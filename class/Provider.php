@@ -28,8 +28,10 @@ class Provider extends User {
             return ['status' => 'error', 'message' => 'User ID is required.'];
         }
         $userId = $data['user_id'];
-        $email = $data['email'] ?? '';
-        $nic = $data['nic'] ?? '';
+        $email = isset($data['email']) ? strtolower(trim($data['email'])) : '';
+        $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+        $nic = isset($data['nic']) ? trim($data['nic']) : '';
+        $nic = htmlspecialchars($nic, ENT_QUOTES, 'UTF-8');
         // Check for duplicate email (exclude current user)
         $stmt = $this->conn->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
         $stmt->execute([$email, $userId]);
@@ -42,10 +44,16 @@ class Provider extends User {
         if ($stmt->fetch()) {
             return ['status' => 'error', 'message' => 'NIC already exists'];
         }
-        $this->setName($data['name'] ?? '');
+        $name = isset($data['name']) ? trim($data['name']) : '';
+        $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+        $this->setName($name);
         $this->setEmail($email);
-        $this->setPhoneNumber($data['phone_number'] ?? '');
-        $this->setAddress($data['address'] ?? '');
+        $phone = isset($data['phone_number']) ? trim($data['phone_number']) : '';
+        $phone = htmlspecialchars($phone, ENT_QUOTES, 'UTF-8');
+        $this->setPhoneNumber($phone);
+        $address = isset($data['address']) ? trim($data['address']) : '';
+        $address = htmlspecialchars($address, ENT_QUOTES, 'UTF-8');
+        $this->setAddress($address);
         $this->setNIC($nic);
         $disable_status = isset($data['disable_status']) ? (int)$data['disable_status'] : 0;
         $stmt = $this->conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, NIC = ?, disable_status = ? WHERE user_id = ? AND user_type = 'provider'");
@@ -61,8 +69,10 @@ class Provider extends User {
         // Update provider table fields if present
         $providerResult = true;
         if (isset($data['provider_id'])) {
-            $description = $data['description'] ?? '';
-            $qualifications = $data['qualifications'] ?? '';
+            $description = isset($data['description']) ? trim($data['description']) : '';
+            $description = htmlspecialchars($description, ENT_QUOTES, 'UTF-8');
+            $qualifications = isset($data['qualifications']) ? trim($data['qualifications']) : '';
+            $qualifications = htmlspecialchars($qualifications, ENT_QUOTES, 'UTF-8');
             $status = $data['status'] ?? 'inactive';
             $stmt2 = $this->conn->prepare("UPDATE provider SET description = ?, qualifications = ?, status = ? WHERE provider_id = ?");
             $providerResult = $stmt2->execute([

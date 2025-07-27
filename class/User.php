@@ -50,6 +50,10 @@ class User {
     }
 
     public function login($email, $password) {
+    $email = strtolower(trim($email));
+    $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+    $password = trim($password);
+    $password = htmlspecialchars($password, ENT_QUOTES, 'UTF-8');
         $stmt = $this->conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date, NIC FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -177,7 +181,8 @@ class User {
         $phone = $data['phone'] ?? '';
         $address = $data['address'] ?? '';
         $password = $data['password'] ?? '';
-        $otp = $data['otp'] ?? '';
+        $otp = isset($data['otp']) ? trim($data['otp']) : '';
+        $otp = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
         $nic = $data['nic'] ?? '';
         $userType = $data['userType'] ?? 'customer';
         if (!$email || !$fullName || !$phone || !$address || !$password || !$otp) {
@@ -224,6 +229,8 @@ class User {
     }
 
     public function forgotPassword($email) {
+        $cleanupStmt = $this->conn->prepare("DELETE FROM otp WHERE purpose = 'password_reset' AND expired_at < NOW()");
+        $cleanupStmt->execute();
         $stmt = $this->conn->prepare("SELECT user_id FROM users WHERE email = ?");
         $stmt->execute([$email]);
         if (!$stmt->fetch(PDO::FETCH_ASSOC)) {

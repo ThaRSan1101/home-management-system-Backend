@@ -50,8 +50,10 @@ class Customer extends User {
             return ['status' => 'error', 'message' => 'User ID is required.'];
         }
         $userId = $data['user_id'];
-        $email = $data['email'] ?? '';
-        $nic = $data['nic'] ?? '';
+        $email = isset($data['email']) ? strtolower(trim($data['email'])) : '';
+        $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+        $nic = isset($data['nic']) ? trim($data['nic']) : '';
+        $nic = htmlspecialchars($nic, ENT_QUOTES, 'UTF-8');
         // Check for duplicate email (exclude current user)
         $stmt = $this->conn->prepare("SELECT user_id FROM users WHERE email = ? AND user_id != ?");
         $stmt->execute([$email, $userId]);
@@ -64,12 +66,18 @@ class Customer extends User {
         if ($stmt->fetch()) {
             return ['status' => 'error', 'message' => 'NIC already exists'];
         }
-        $this->setName($data['name'] ?? '');
-        $this->setEmail($email);
-        $this->setPhoneNumber($data['phone_number'] ?? '');
-        $this->setAddress($data['address'] ?? '');
-        $this->setNIC($nic);
-        $disableStatus = isset($data['disable_status']) ? (int)$data['disable_status'] : 0;
+        $name = isset($data['name']) ? trim($data['name']) : '';
+    $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    $this->setName($name);
+    $this->setEmail($email);
+    $phone = isset($data['phone_number']) ? trim($data['phone_number']) : '';
+    $phone = htmlspecialchars($phone, ENT_QUOTES, 'UTF-8');
+    $this->setPhoneNumber($phone);
+    $address = isset($data['address']) ? trim($data['address']) : '';
+    $address = htmlspecialchars($address, ENT_QUOTES, 'UTF-8');
+    $this->setAddress($address);
+    $this->setNIC($nic);
+    $disableStatus = isset($data['disable_status']) ? (int)$data['disable_status'] : 0;
         $stmt = $this->conn->prepare("UPDATE users SET name = ?, email = ?, phone_number = ?, address = ?, NIC = ?, disable_status = ? WHERE user_id = ? AND user_type = 'customer'");
         $result = $stmt->execute([
             $this->getName(),
