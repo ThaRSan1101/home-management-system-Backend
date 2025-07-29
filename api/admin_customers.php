@@ -1,13 +1,13 @@
 <?php
-require_once __DIR__ . '/../class/Customer.php';
+require_once __DIR__ . '/../class/Admin.php';
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type');
 header('Content-Type: application/json');
 
 try {
-    $customer = new Customer();
-    $result = $customer->getCustomerDetails();
+    $admin = new Admin();
+    $result = $admin->getCustomerDetails();
     echo json_encode($result);
 } catch (Exception $e) {
     echo json_encode([

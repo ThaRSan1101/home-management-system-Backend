@@ -94,4 +94,22 @@ class Admin extends User {
         $providers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $providers;
     }
+
+    public function getCustomerDetails() {
+        try {
+            $stmt = $this->conn->prepare("SELECT user_id, name, email, phone_number, address, NIC, registered_date, disable_status FROM users WHERE user_type = 'customer'");
+            $stmt->execute();
+            $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return [
+                'status' => 'success',
+                'data' => $customers
+            ];
+        } catch (PDOException $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Failed to fetch customers',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 } 

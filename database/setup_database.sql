@@ -23,12 +23,14 @@ CREATE TABLE otp (
     otp_id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL,
     otp_code VARCHAR(10) NOT NULL,
-    purpose ENUM('registration', 'password_reset', 'email_verification') NOT NULL,
+    purpose ENUM('registration', 'password_reset', 'email_verification', 'updateCustomerProfile', 'updateProviderProfile') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expired_at DATETIME NOT NULL,
     INDEX idx_email_purpose (email, purpose),
     INDEX idx_expired_at (expired_at)
 );
+
+
 
 -- Step 4: Communication Table
 -- 4.1 message

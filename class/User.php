@@ -275,4 +275,110 @@ class User {
         $stmt->execute([$email]);
         return ['status' => 'success', 'message' => 'Password changed successfully.'];
     }
+
+    /**
+     * Request OTP for profile update (customer/provider)
+     * @param array $data - profile fields, must include user_id
+     * @param string $purpose - 'updateCustomerProfile' or 'updateProviderProfile'
+     */
+    public function requestProfileUpdateOtp($data, $purpose) {
+        $userId = $data['user_id'] ?? null;
+        if (!$userId) {
+            return ['status' => 'error', 'message' => 'User ID is required.'];
+        }
+        // Fetch current email from users table
+        $stmt = $this->conn->prepare("SELECT email, name FROM users WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) {
+            return ['status' => 'error', 'message' => 'User not found.'];
+        }
+        $email = $user['email'];
+        $fullName = $user['name'];
+        // Generate OTP
+        $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+        $pendingData = json_encode($data);
+        // Remove any previous pending OTP for this user/purpose
+        $del = $this->conn->prepare("DELETE FROM otp WHERE email = ? AND purpose = ?");
+        $del->execute([$email, $purpose]);
+        // Insert new OTP with pending data in pending_data column
+        $stmt = $this->conn->prepare("INSERT INTO otp (email, otp_code, purpose, expired_at, pending_data) VALUES (?, ?, ?, ?, ?)");
+        if (!$stmt->execute([$email, $otp, $purpose, $expires_at, $pendingData])) {
+            return ['status' => 'error', 'message' => 'Failed to save OTP.'];
+        }
+        // Send OTP email
+        $mailer = new PHPMailerService();
+        $subject = 'Profile Update OTP';
+        $body = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;border:1px solid #e0e0e0;padding:24px;border-radius:8px;">
+            <div style="font-size:20px;font-weight:bold;color:#2a4365;margin-bottom:8px;">Home Management System</div>
+            <div style="font-size:16px;margin-bottom:16px;">Hello, <strong>' . htmlspecialchars($fullName) . '</strong></div>
+            <div style="margin-bottom:12px;">You requested to update your profile. Use the code below to verify:</div>
+            <div style="font-size:28px;font-weight:bold;color:#2a4365;margin-bottom:16px;letter-spacing:2px;">' . htmlspecialchars($otp) . '</div>
+            <div style="font-size:13px;color:#555;">This code will expire in 10 minutes.</div>
+            <hr style="margin:24px 0 12px 0;border:none;border-top:1px solid #eee;">
+            <div style="font-size:12px;color:#999;">If you did not request this, please ignore this email.</div>
+            </div>';
+        $result = $mailer->sendMail($email, $subject, $body);
+        if ($result['success']) {
+            return [
+                'status' => 'success',
+                'message' => 'OTP sent to your email. Please enter it to confirm profile update.'
+            ];
+        } else {
+            return ['status' => 'error', 'message' => 'Mail Error: ' . $result['error']];
+        }
+    }
+
+    /**
+     * Verify OTP and update profile (customer/provider)
+     * @param int $userId
+     * @param string $otp
+     * @param string $purpose
+     */
+    public function verifyProfileUpdateOtp($userId, $otp, $purpose) {
+        // Fetch current email
+        $stmt = $this->conn->prepare("SELECT email FROM users WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) {
+            return ['status' => 'error', 'message' => 'User not found.'];
+        }
+        $email = $user['email'];
+        // Find OTP
+        $now = date('Y-m-d H:i:s');
+        $stmt = $this->conn->prepare("SELECT * FROM otp WHERE email = ? AND otp_code = ? AND purpose = ? AND expired_at > ?");
+        $stmt->execute([$email, $otp, $purpose, $now]);
+        $otpRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$otpRow) {
+            return ['status' => 'error', 'message' => 'Invalid or expired OTP.'];
+        }
+        // Get pending data from pending_data column
+        $pendingData = json_decode($otpRow['pending_data'] ?? '', true);
+        if (!$pendingData || !isset($pendingData['user_id'])) {
+            return ['status' => 'error', 'message' => 'Pending profile data is invalid.'];
+        }
+        // Update users table
+        $fields = [];
+        $params = [];
+        foreach (['name', 'email', 'phone_number', 'address'] as $field) {
+            if (isset($pendingData[$field]) || isset($pendingData[$field === 'name' ? 'fullName' : $field])) {
+                $fields[] = "$field = ?";
+                $params[] = $pendingData[$field] ?? $pendingData[$field === 'name' ? 'fullName' : $field];
+            }
+        }
+        if (empty($fields)) {
+            return ['status' => 'error', 'message' => 'No valid profile fields to update.'];
+        }
+        $params[] = $userId;
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE user_id = ?";
+        $stmt = $this->conn->prepare($sql);
+        if (!$stmt->execute($params)) {
+            return ['status' => 'error', 'message' => 'Failed to update profile.'];
+        }
+        // Clean up OTP
+        $del = $this->conn->prepare("DELETE FROM otp WHERE email = ? AND purpose = ?");
+        $del->execute([$email, $purpose]);
+        return ['status' => 'success', 'message' => 'Profile updated successfully.'];
+    }
 } 
