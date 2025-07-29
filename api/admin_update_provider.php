@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../class/Customer.php';
+require_once __DIR__ . '/../class/Provider.php';
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -11,6 +11,6 @@ if (!$data || !isset($data['user_id'])) {
     exit;
 }
 
-$customer = new Customer();
-$result = $customer->updateProfile($data);
+$provider = new Provider();
+$result = $provider->updateProfile($data);
 echo json_encode($result);
