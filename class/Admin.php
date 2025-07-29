@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/User.php';
 
+require_once __DIR__ . '/phpmailer.php';
+
 class Admin extends User {
     // Add admin-specific methods here
 
@@ -65,24 +67,23 @@ class Admin extends User {
 
         $emailError = null;
         // Send welcome email
-        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = 'arultharsan096@gmail.com';
-            $mail->Password = 'dwzuvfvwhoitkfkp';
-            $mail->SMTPSecure = 'tls';
-            $mail->Port = 587;
-            $mail->setFrom('arultharsan096@gmail.com', 'ServiceHub');
-            $mail->addAddress($email, $name);
-            $mail->isHTML(true);
-            $mail->Subject = 'Welcome to ServiceHub!';
-            $mail->Body = "<h3>Welcome to ServiceHub, $name!</h3><p>Your provider account has been created by the admin.</p><p><b>Username:</b> $email<br><b>Password:</b> $randomPassword</p><p><b>Important:</b> Please change your password after logging in for the first time.</p><p>You can now log in and start accepting service requests.</p><p>Thank you,<br>ServiceHub Team</p>";
-            $mail->send();
-        } catch (\Exception $e) {
-            $emailError = $mail->ErrorInfo;
-        }
+        $mailer = new PHPMailerService();
+            $subject = 'Welcome to Home Management System!';
+            $body = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;border:1px solid #e0e0e0;padding:24px;border-radius:8px;">
+            <div style="font-size:20px;font-weight:bold;color:#2a4365;margin-bottom:8px;">Home Management System</div>
+            <div style="font-size:16px;margin-bottom:16px;">Hello, <strong>' . htmlspecialchars($name) . '</strong></div>
+            <div style="margin-bottom:12px;">Your provider account has been created by the admin. Use the credentials below to log in:</div>
+            <div style="font-size:16px;margin-bottom:8px;"><b>Username:</b> ' . htmlspecialchars($email) . '</div>
+            <div style="font-size:16px;margin-bottom:16px;"><b>Password:</b> <span style="font-size:20px;font-weight:bold;color:#2a4365;letter-spacing:2px;">' . htmlspecialchars($randomPassword) . '</span></div>
+            <div style="font-size:13px;color:#555;margin-bottom:10px;">Important: Please change your password after logging in for the first time.</div>
+            <div style="font-size:13px;color:#555;margin-bottom:10px;">You can now log in and start accepting service requests.</div>
+            <hr style="margin:24px 0 12px 0;border:none;border-top:1px solid #eee;">
+            <div style="font-size:12px;color:#999;">If you did not request this, please ignore this email.</div>
+            </div>';
+            $result = $mailer->sendMail($email, $subject, $body);
+            if (!$result['success']) {
+                $emailError = $result['error'];
+            }
 
         return ['status' => 'success', 'message' => 'Provider added successfully.', 'emailError' => $emailError];
     }

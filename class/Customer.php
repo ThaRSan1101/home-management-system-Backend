@@ -5,11 +5,7 @@ class Customer extends User {
     public function __construct($dbConn = null) {
         parent::__construct($dbConn);
     }
-    // Add customer-specific methods here
-    /**
-     * Fetch all customer details from the users table.
-     * @return array List of customers or error info
-     */
+
     public function getCustomerDetails() {
         try {
             $stmt = $this->conn->prepare("SELECT user_id, name, email, phone_number, address, NIC, registered_date, disable_status FROM users WHERE user_type = 'customer'");
@@ -28,9 +24,6 @@ class Customer extends User {
         }
     }
 
-    public function getCustomerBookings() {
-        // Example: return bookings for this customer
-    }
 
     // Getter and Setter methods
     public function getName() { return $this->name; }

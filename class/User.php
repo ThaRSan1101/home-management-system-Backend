@@ -2,44 +2,28 @@
 require_once __DIR__ . '/../api/db.php';
 // User.php - OOP class for user authentication and management
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+require_once __DIR__ . '/phpmailer.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class User {
-    /**
-     * @var PDO Database connection
-     */
+
     protected $conn;
     private $jwtKey = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
 
-    // User table columns as private properties
-    /** @var int|null */
+
     protected $user_id;
-    /** @var string|null */
     protected $name;
-    /** @var string|null */
     protected $email;
-    /** @var string|null */
     protected $password;
-    /** @var string|null */
     protected $phone_number;
-    /** @var string|null */
     protected $address;
-    /** @var string|null */
     protected $NIC;
-    /** @var string|null */
     protected $user_type;
-    /** @var bool|null */
     protected $disable_status;
-    /** @var string|null */
     protected $registered_date;
 
-    /**
-     * User constructor.
-     * @param PDO|null $dbConn
-     */
+
     public function __construct($dbConn = null) {
         if ($dbConn) {
             $this->conn = $dbConn;
@@ -146,33 +130,31 @@ class User {
             return ['status' => 'error', 'message' => 'Failed to save OTP.'];
         }
         // Send OTP email
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = 'arultharsan096@gmail.com';
-            $mail->Password = 'dwzuvfvwhoitkfkp';
-            $mail->SMTPSecure = 'tls';
-            $mail->Port = 587;
-            $mail->setFrom('arultharsan096@gmail.com', 'ServiceHub');
-            $mail->addAddress($email, $fullName);
-            $mail->isHTML(true);
-            $mail->Subject = 'Your OTP for Registration';
-            $mail->Body    = "<h3>Hello $fullName,</h3><p>Your OTP is: <strong>$otp</strong></p><p>This OTP will expire in 15 minutes.</p>";
-            $mail->send();
-            return [
-                'status' => 'success',
-                'message' => 'OTP sent',
-                'debug' => [
-                    'otp' => $otp,
-                    'expires_at' => $expires_at,
-                    'current_time' => date('Y-m-d H:i:s')
-                ]
-            ];
-        } catch (Exception $e) {
-            return ['status' => 'error', 'message' => 'Mail Error: ' . $mail->ErrorInfo];
-        }
+        $mailer = new PHPMailerService();
+            $subject = 'Your OTP for Registration';
+            $body = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;border:1px solid #e0e0e0;padding:24px;border-radius:8px;">
+            <div style="font-size:20px;font-weight:bold;color:#2a4365;margin-bottom:8px;">Home Management System</div>
+            <div style="font-size:16px;margin-bottom:16px;">Hello, <strong>' . htmlspecialchars($fullName) . '</strong></div>
+            <div style="margin-bottom:12px;">Thank you for registering. Use the code below to verify your email:</div>
+            <div style="font-size:28px;font-weight:bold;color:#2a4365;margin-bottom:16px;letter-spacing:2px;">' . htmlspecialchars($otp) . '</div>
+            <div style="font-size:13px;color:#555;">This code will expire in 15 minutes.</div>
+            <hr style="margin:24px 0 12px 0;border:none;border-top:1px solid #eee;">
+            <div style="font-size:12px;color:#999;">If you did not request this, please ignore this email.</div>
+            </div>';
+            $result = $mailer->sendMail($email, $subject, $body);
+            if ($result['success']) {
+                return [
+                    'status' => 'success',
+                    'message' => 'OTP sent',
+                    'debug' => [
+                        'otp' => $otp,
+                        'expires_at' => $expires_at,
+                        'current_time' => date('Y-m-d H:i:s')
+                    ]
+                ];
+            } else {
+                return ['status' => 'error', 'message' => 'Mail Error: ' . $result['error']];
+            }
     }
 
     public function verifyOtp($data) {
@@ -240,25 +222,23 @@ class User {
         $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         $stmt = $this->conn->prepare("INSERT INTO otp (email, otp_code, purpose, expired_at) VALUES (?, ?, 'password_reset', ?) ON DUPLICATE KEY UPDATE otp_code=VALUES(otp_code), expired_at=VALUES(expired_at)");
         $stmt->execute([$email, $otp, $expires_at]);
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = 'arultharsan096@gmail.com';
-            $mail->Password = 'dwzuvfvwhoitkfkp';
-            $mail->SMTPSecure = 'tls';
-            $mail->Port = 587;
-            $mail->setFrom('arultharsan096@gmail.com', 'Your App Name');
-            $mail->addAddress($email);
-            $mail->isHTML(true);
-            $mail->Subject = 'Your Password Reset Code';
-            $mail->Body    = "<h3>Password Reset</h3><p>Your OTP is: <strong>$otp</strong></p><p>This OTP will expire in 10 minutes.</p>";
-            $mail->send();
-            return ['status' => 'success', 'message' => 'OTP sent to your email.'];
-        } catch (Exception $e) {
-            return ['status' => 'error', 'message' => 'Mail Error: ' . $mail->ErrorInfo];
-        }
+        $mailer = new PHPMailerService();
+            $subject = 'Your Password Reset Code';
+            $body = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;border:1px solid #e0e0e0;padding:24px;border-radius:8px;">
+            <div style="font-size:20px;font-weight:bold;color:#2a4365;margin-bottom:8px;">Home Management System</div>
+            <div style="font-size:16px;margin-bottom:16px;">Hello,</div>
+            <div style="margin-bottom:12px;">Use the code below to reset your password:</div>
+            <div style="font-size:28px;font-weight:bold;color:#2a4365;margin-bottom:16px;letter-spacing:2px;">' . htmlspecialchars($otp) . '</div>
+            <div style="font-size:13px;color:#555;">This code will expire in 10 minutes.</div>
+            <hr style="margin:24px 0 12px 0;border:none;border-top:1px solid #eee;">
+            <div style="font-size:12px;color:#999;">If you did not request this, please ignore this email.</div>
+            </div>';
+            $result = $mailer->sendMail($email, $subject, $body);
+            if ($result['success']) {
+                return ['status' => 'success', 'message' => 'OTP sent to your email.'];
+            } else {
+                return ['status' => 'error', 'message' => 'Mail Error: ' . $result['error']];
+            }
     }
 
     public function verifyResetOtp($email, $otp) {
