@@ -1,13 +1,19 @@
 <?php
+require_once __DIR__ . '/auth_middleware.php';  // Adjust path if needed
+
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: http://localhost:5173');  // Restrict to your frontend domain
+header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
+
+// Optionally get user info if logged in, but do not require auth
+// $user = require_auth(); // Allow guests to send messages
 
 require_once __DIR__ . '/../api/db.php';
 require_once __DIR__ . '/../class/Message.php';

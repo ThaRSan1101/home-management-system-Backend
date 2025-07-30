@@ -10,19 +10,22 @@ class Message {
 
     // Save a new message
     public function saveMessage($name, $email, $phone_number, $subject, $message) {
-    $name = htmlspecialchars(trim($name), ENT_QUOTES, 'UTF-8');
-    $email = htmlspecialchars(strtolower(trim($email)), ENT_QUOTES, 'UTF-8');
-    $phone_number = htmlspecialchars(trim($phone_number), ENT_QUOTES, 'UTF-8');
-    $subject = htmlspecialchars(trim($subject), ENT_QUOTES, 'UTF-8');
-    $message = htmlspecialchars(trim($message), ENT_QUOTES, 'UTF-8');
+        $name = htmlspecialchars(trim($name), ENT_QUOTES, 'UTF-8');
+        $email = htmlspecialchars(strtolower(trim($email)), ENT_QUOTES, 'UTF-8');
+        $phone_number = htmlspecialchars(trim($phone_number), ENT_QUOTES, 'UTF-8');
+        $subject = htmlspecialchars(trim($subject), ENT_QUOTES, 'UTF-8');
+        $message = htmlspecialchars(trim($message), ENT_QUOTES, 'UTF-8');
+
         $query = "INSERT INTO {$this->table} (name, email, phone_number, subject, message, date) VALUES (?, ?, ?, ?, ?, NOW())";
         $stmt = $this->conn->prepare($query);
         $result = $stmt->execute([$name, $email, $phone_number, $subject, $message]);
+
         if (!$result) {
             $this->lastPdoError = $stmt->errorInfo();
         } else {
             $this->lastPdoError = null;
         }
+
         return $result;
     }
 
@@ -40,6 +43,4 @@ class Message {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-
 }

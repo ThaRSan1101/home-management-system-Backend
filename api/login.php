@@ -1,8 +1,6 @@
 <?php
 require_once __DIR__ . '/../class/User.php';
-require_once __DIR__ . '/php-jwt/php-jwt-main/src/JWT.php';
-require_once __DIR__ . '/php-jwt/php-jwt-main/src/Key.php';
-use Firebase\JWT\JWT;
+require_once __DIR__ . '/jwt_utils.php'; // Include JWT helper functions
 
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Credentials: true");
@@ -22,16 +20,36 @@ $userObj = new User();
 $result = $userObj->login($email, $password);
 
 if ($result['status'] === 'success') {
-    $jwt = $result['jwt'];
-    $cookieOptions = [
-        'expires' => time() + (60 * 60 * 24),
+    // Prepare JWT payload
+    $payload = [
+        'user_id'   => $result['user_id'],
+        'email'     => $result['email'],
+        'user_type' => $result['user_type'],
+        'iat'       => time(),              // Issued at
+        'exp'       => time() + 86400       // Expiration time (1 day)
+    ];
+
+    // Generate JWT token
+    $token = generate_jwt($payload);
+
+    // Set JWT in HttpOnly cookie
+    setcookie('token', $token, [
+        'expires' => time() + 86400,  // 1 day
         'path' => '/',
-        'domain' => '',
-        'secure' => false,
+        'domain' => '',               // Adjust if needed
+        'secure' => false,            // true if using HTTPS
         'httponly' => true,
         'samesite' => 'Lax'
-    ];
-    setcookie('access_token', $jwt, $cookieOptions);
+    ]);
+
+    // Respond success with user info (token is in cookie)
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Login successful',
+        'user_type' => $result['user_type'],
+        'user_id' => $result['user_id'],
+        'user_details' => isset($result['user_details']) ? $result['user_details'] : null
+    ]);
+} else {
+    echo json_encode($result);
 }
-echo json_encode($result);
-?> 

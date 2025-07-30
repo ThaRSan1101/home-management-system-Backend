@@ -1,14 +1,40 @@
 <?php
-require_once __DIR__ . '/../class/Admin.php';
-
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Headers: Content-Type');
+if (isset($_SERVER['HTTP_ORIGIN']) && preg_match('/^http:\/\/localhost(:[0-9]+)?$/', $_SERVER['HTTP_ORIGIN'])) {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+}
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+require_once __DIR__ . '/../class/Admin.php';
+require_once __DIR__ . '/auth_middleware.php'; // ✅ Require JWT validation
+
+$user = require_auth(); // ✅ Validate JWT and get user data
+
+// ✅ Optional: Restrict to admin only
+if ($user['user_type'] !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Access denied: Admins only.']);
+    exit;
+}
 
 try {
     $admin = new Admin();
     $result = $admin->getCustomerDetails();
-    echo json_encode($result);
+    if ($result['status'] === 'success') {
+        echo json_encode([
+            'status' => 'success',
+            'data' => $result['data']
+        ]);
+    } else {
+        echo json_encode([
+            'status' => 'error',
+            'message' => $result['message'] ?? 'Failed to fetch customers.'
+        ]);
+    }
 } catch (Exception $e) {
     echo json_encode([
         'status' => 'error',

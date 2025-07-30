@@ -1,28 +1,25 @@
 <?php
 require_once __DIR__ . '/../api/db.php';
-// User.php - OOP class for user authentication and management
-
 require_once __DIR__ . '/phpmailer.php';
+
+// Include JWT library
+require_once __DIR__ . '/../vendor/autoload.php';  // Adjust path if needed
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class User {
+    // ...
+    public function getUserById($userId) {
+        $stmt = $this->conn->prepare("SELECT user_id, email, user_type, name FROM users WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
 
     protected $conn;
-    private $jwtKey = 'f8d3c2e1b4a7d6e5f9c8b7a6e3d2c1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4';
+    protected $jwtSecret = 'your-256-bit-secret';  // Change this to a strong secret, store safely
 
-
-    protected $user_id;
-    protected $name;
-    protected $email;
-    protected $password;
-    protected $phone_number;
-    protected $address;
-    protected $NIC;
-    protected $user_type;
-    protected $disable_status;
-    protected $registered_date;
-
+    // ... your existing properties ...
 
     public function __construct($dbConn = null) {
         if ($dbConn) {
@@ -33,11 +30,26 @@ class User {
         }
     }
 
+    // Add a method to generate JWT
+    private function generateJWT($user) {
+        $issuedAt = time();
+        $expire = $issuedAt + (60 * 60 * 24); // 1 day expiry
+        $payload = [
+            'iat' => $issuedAt,
+            'exp' => $expire,
+            'user_id' => $user['user_id'],
+            'email' => $user['email'],
+            'user_type' => $user['user_type']
+        ];
+        return JWT::encode($payload, $this->jwtSecret, 'HS256');
+    }
+
     public function login($email, $password) {
-    $email = strtolower(trim($email));
-    $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
-    $password = trim($password);
-    $password = htmlspecialchars($password, ENT_QUOTES, 'UTF-8');
+        $email = strtolower(trim($email));
+        $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+        $password = trim($password);
+        $password = htmlspecialchars($password, ENT_QUOTES, 'UTF-8');
+
         $stmt = $this->conn->prepare("SELECT user_id, name, email, password, user_type, disable_status, phone_number, address, registered_date, NIC FROM users WHERE email = ?");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -47,17 +59,14 @@ class User {
         if ($user['disable_status']) {
             return ['status' => 'error', 'message' => 'Your account has been disabled. Please contact support.'];
         }
-        $payload = [
-            'user_id' => $user['user_id'],
-            'email' => $user['email'],
-            'user_type' => $user['user_type'],
-            'exp' => time() + (60 * 60 * 24)
-        ];
-        $jwt = JWT::encode($payload, $this->jwtKey, 'HS256');
+
+        // Generate JWT token here
+        $jwt = $this->generateJWT($user);
+
         return [
             'status' => 'success',
             'message' => 'Login successful.',
-            'jwt' => $jwt,
+            'token' => $jwt,
             'user_type' => $user['user_type'],
             'name' => $user['name'],
             'email' => $user['email'],
@@ -81,6 +90,16 @@ class User {
                 'email' => $user['email']
             ] : null))
         ];
+    }
+
+    // Add method to validate JWT token (for middleware)
+    public function validateJWT($jwt) {
+        try {
+            $decoded = JWT::decode($jwt, new Key($this->jwtSecret, 'HS256'));
+            return (array)$decoded;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     public function register($data) {

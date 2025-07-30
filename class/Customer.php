@@ -6,17 +6,6 @@ class Customer extends User {
         parent::__construct($dbConn);
     }
 
-    // Getter and Setter methods
-    public function getName() { return $this->name; }
-    public function setName($name) { $this->name = $name; }
-    public function getEmail() { return $this->email; }
-    public function setEmail($email) { $this->email = $email; }
-    public function getPhoneNumber() { return $this->phone_number; }
-    public function setPhoneNumber($phone) { $this->phone_number = $phone; }
-    public function getAddress() { return $this->address; }
-    public function setAddress($address) { $this->address = $address; }
-    public function getNIC() { return $this->NIC; }
-    public function setNIC($nic) { $this->NIC = $nic; }
     /**
      * Update customer profile (admin action)
      * @param array $data
@@ -69,7 +58,6 @@ class Customer extends User {
                 return ['status' => 'error', 'message' => 'Email already exists.'];
             }
         }
-        $nicValue = $data['NIC'] ?? $data['nic'] ?? null;
         if (!empty($nicValue)) {
             $checkNIC = $this->conn->prepare("SELECT user_id FROM users WHERE NIC = ? AND user_id != ?");
             $checkNIC->execute([trim($nicValue), $userId]);
@@ -77,6 +65,7 @@ class Customer extends User {
                 return ['status' => 'error', 'message' => 'NIC already exists.'];
             }
         }
+
         try {
             // Check if user exists before update
             $checkStmt = $this->conn->prepare("SELECT user_id FROM users WHERE user_id = ?");
