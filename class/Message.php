@@ -1,8 +1,8 @@
 <?php
-class Message {
-    private $conn;
-    private $table = 'message';
-    private $lastPdoError = null;
+require_once __DIR__ . '/AbstractMessage.php';
+
+class Message extends AbstractMessage {
+    protected $lastPdoError = null;
 
     public function __construct($db) {
         $this->conn = $db;
