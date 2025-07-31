@@ -1,17 +1,6 @@
 <?php
 // --- CORS HEADERS (allow localhost dev) ---
-$allowed_origins = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost',
-    'http://127.0.0.1'
-];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowed_origins)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    header("Access-Control-Allow-Origin: http://localhost:5173");
-}
+header('Access-Control-Allow-Origin: http://localhost:5173');
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -23,9 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . '/auth_middleware.php';
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/../class/User.php';
-require_once __DIR__ . '/jwt_utils.php';
 
 header('Content-Type: application/json');
 

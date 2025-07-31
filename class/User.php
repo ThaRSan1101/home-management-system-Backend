@@ -2,22 +2,17 @@
 require_once __DIR__ . '/../api/db.php';
 require_once __DIR__ . '/phpmailer.php';
 
-// Include JWT library
-require_once __DIR__ . '/../vendor/autoload.php';  // Adjust path if needed
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-
 class User {
     // ...
     public function getUserById($userId) {
-        $stmt = $this->conn->prepare("SELECT user_id, email, user_type, name FROM users WHERE user_id = ?");
+        $stmt = $this->conn->prepare("SELECT user_id, email, user_type, name, phone_number, address, registered_date, NIC FROM users WHERE user_id = ?");
         $stmt->execute([$userId]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
 
     protected $conn;
-    protected $jwtSecret = 'your-256-bit-secret';  // Change this to a strong secret, store safely
+    
 
     // ... your existing properties ...
 
@@ -28,20 +23,6 @@ class User {
             $db = new DBConnector();
             $this->conn = $db->connect();
         }
-    }
-
-    // Add a method to generate JWT
-    private function generateJWT($user) {
-        $issuedAt = time();
-        $expire = $issuedAt + (60 * 60 * 24); // 1 day expiry
-        $payload = [
-            'iat' => $issuedAt,
-            'exp' => $expire,
-            'user_id' => $user['user_id'],
-            'email' => $user['email'],
-            'user_type' => $user['user_type']
-        ];
-        return JWT::encode($payload, $this->jwtSecret, 'HS256');
     }
 
     public function login($email, $password) {
@@ -60,13 +41,18 @@ class User {
             return ['status' => 'error', 'message' => 'Your account has been disabled. Please contact support.'];
         }
 
-        // Generate JWT token here
-        $jwt = $this->generateJWT($user);
+        
+        $payload = [
+            'user_id' => $user['user_id'],
+            'email' => $user['email'],
+            'user_type' => $user['user_type']
+        ];
+        generate_jwt($payload);
 
         return [
             'status' => 'success',
             'message' => 'Login successful.',
-            'token' => $jwt,
+            
             'user_type' => $user['user_type'],
             'name' => $user['name'],
             'email' => $user['email'],
@@ -90,16 +76,6 @@ class User {
                 'email' => $user['email']
             ] : null))
         ];
-    }
-
-    // Add method to validate JWT token (for middleware)
-    public function validateJWT($jwt) {
-        try {
-            $decoded = JWT::decode($jwt, new Key($this->jwtSecret, 'HS256'));
-            return (array)$decoded;
-        } catch (Exception $e) {
-            return false;
-        }
     }
 
     public function register($data) {

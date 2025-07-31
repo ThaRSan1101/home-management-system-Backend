@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../class/User.php';
-require_once __DIR__ . '/jwt_utils.php'; // Include JWT helper functions
+require_once __DIR__ . '/auth.php'; // Central JWT logic
 
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Credentials: true");
@@ -20,29 +20,20 @@ $userObj = new User();
 $result = $userObj->login($email, $password);
 
 if ($result['status'] === 'success') {
-    // Prepare JWT payload
     $payload = [
         'user_id'   => $result['user_id'],
         'email'     => $result['email'],
-        'user_type' => $result['user_type'],
-        'iat'       => time(),              // Issued at
-        'exp'       => time() + 86400       // Expiration time (1 day)
+        'user_type' => $result['user_type']
     ];
-
-    // Generate JWT token
     $token = generate_jwt($payload);
-
-    // Set JWT in HttpOnly cookie
     setcookie('token', $token, [
-        'expires' => time() + 86400,  // 1 day
+        'expires' => time() + TOKEN_EXPIRATION,
         'path' => '/',
-        'domain' => '',               // Adjust if needed
-        'secure' => false,            // true if using HTTPS
+        'domain' => '',
+        'secure' => false,
         'httponly' => true,
         'samesite' => 'Lax'
     ]);
-
-    // Respond success with user info (token is in cookie)
     echo json_encode([
         'status' => 'success',
         'message' => 'Login successful',
