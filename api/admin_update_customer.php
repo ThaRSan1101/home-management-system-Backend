@@ -1,12 +1,8 @@
 <?php
 require_once __DIR__ . '/../class/Customer.php';
-require_once __DIR__ . '/auth_middleware.php'; // ✅ Add auth middleware
+require_once __DIR__ . '/auth.php'; // ✅ Add auth middleware
 
-if (isset($_SERVER['HTTP_ORIGIN']) && preg_match('/^http:\/\/localhost(:[0-9]+)?$/', $_SERVER['HTTP_ORIGIN'])) {
-    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-} else {
-    header('Access-Control-Allow-Origin: http://localhost:5173'); // fallback for dev
-}
+header('Access-Control-Allow-Origin: http://localhost:5173');
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
