@@ -63,7 +63,4 @@ $result = [
 ];
 
 // Output customer profile as JSON
-echo json_encode([
-    'status' => 'success',
-    'data' => $result
-]);
+echo json_encode($result);
