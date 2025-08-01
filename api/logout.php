@@ -1,4 +1,19 @@
 <?php
+/**
+ * logout.php
+ *
+ * API endpoint to log out the current user by clearing the JWT authentication cookie.
+ *
+ * Flow:
+ * - Sets the 'token' cookie to an expired value, matching the path, domain, and security flags as in login.php
+ * - Returns JSON response with logout status
+ *
+ * CORS headers included for frontend integration with http://localhost:5173.
+ *
+ * Used by: Frontend logout button/action.
+ */
+
+// Set CORS and content headers for frontend integration
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json");
@@ -13,4 +28,5 @@ setcookie('token', '', [
     'samesite' => 'Lax'
 ]);
 
+// Output logout result as JSON
 echo json_encode(['status' => 'success', 'message' => 'Logged out']);

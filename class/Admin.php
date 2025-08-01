@@ -1,10 +1,42 @@
 <?php
+/**
+ * Admin.php
+ *
+ * Defines the Admin class, representing an admin user in the Home Management System backend.
+ *
+ * Responsibilities:
+ * - Encapsulates admin-specific logic (add provider, get providers, get customers)
+ * - Inherits all properties and methods from User.php
+ * - Used by admin panel APIs to manage users and providers
+ *
+ * This class is typically used by endpoints such as admin_customers.php, get_providers.php, and others.
+ */
 require_once __DIR__ . '/User.php';
 require_once __DIR__ . '/phpmailer.php';
 
+/**
+ * Class Admin
+ *
+ * Extends the User class to handle admin-specific actions.
+ *
+ * Methods:
+ * - addProvider($data)
+ * - getAllProviders()
+ * - getCustomerDetails()
+ */
 class Admin extends User {
     // Add admin-specific methods here
 
+    /**
+     * Add a new provider (admin action).
+     *
+     * @param array $data Provider registration fields
+     * @return array Status and message
+     *
+     * This method is called by admin panel endpoints to add a new provider.
+     * It validates input, checks for duplicates, inserts into users and provider tables,
+     * and sends a welcome email with credentials.
+     */
     public function addProvider($data) {
         $name = isset($data['name']) ? trim($data['name']) : '';
         $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
@@ -92,6 +124,14 @@ class Admin extends User {
         return ['status' => 'success', 'message' => 'Provider added successfully.', 'emailError' => $emailError];
     }
 
+    /**
+     * Fetch all service providers (admin action).
+     *
+     * Used by get_providers.php API endpoint to provide a list of all providers for the admin dashboard.
+     * Joins user info with provider-specific details.
+     *
+     * @return array List of providers with details
+     */
     public function getAllProviders() {
         $stmt = $this->conn->prepare("SELECT u.*, p.description, p.qualifications, p.status, p.provider_id FROM users u JOIN provider p ON u.user_id = p.user_id WHERE u.user_type = 'provider'");
         $stmt->execute();
@@ -99,6 +139,14 @@ class Admin extends User {
         return $providers;
     }
 
+    /**
+     * Fetch all customer details (admin action).
+     *
+     * Used by admin_customers.php API endpoint to let the admin panel display/manage all customers.
+     * Returns status and customer data or error info.
+     *
+     * @return array Status and customer data or error
+     */
     public function getCustomerDetails() {
         try {
             $stmt = $this->conn->prepare("SELECT user_id, name, email, phone_number, address, NIC, registered_date, disable_status FROM users WHERE user_type = 'customer'");
