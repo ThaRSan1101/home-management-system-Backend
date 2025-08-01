@@ -164,4 +164,50 @@ class Provider extends User {
             return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Change provider status (active/inactive).
+     *
+     * @param int $providerId
+     * @param string $newStatus ('active' or 'inactive')
+     * @return array
+     */
+    public function changeProviderStatus($providerId, $newStatus) {
+        $allowed = ['active', 'inactive'];
+        $newStatus = strtolower(trim($newStatus));
+        if (!in_array($newStatus, $allowed)) {
+            return ['status' => 'error', 'message' => 'Invalid status value.'];
+        }
+        try {
+            $stmt = $this->conn->prepare("UPDATE provider SET status = ? WHERE user_id = ?");
+            if ($stmt->execute([$newStatus, $providerId])) {
+                return ['status' => 'success', 'message' => 'Status updated successfully.'];
+            } else {
+                return ['status' => 'error', 'message' => 'Failed to update status.'];
+            }
+        } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get provider status (active/inactive).
+     *
+     * @param int $providerId
+     * @return array ['status' => ..., 'provider_status' => ...]
+     */
+    public function getProviderStatus($providerId) {
+        try {
+            $stmt = $this->conn->prepare("SELECT status FROM provider WHERE user_id = ?");
+            $stmt->execute([$providerId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return ['status' => 'success', 'provider_status' => $row['status']];
+            } else {
+                return ['status' => 'error', 'message' => 'Provider not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
 }
