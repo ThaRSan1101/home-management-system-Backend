@@ -1,9 +1,57 @@
 <?php
+/**
+ * User.php
+ *
+ * This file defines the User class, which encapsulates all core user-related operations for the Home Management System backend.
+ *
+ * Responsibilities:
+ * - User authentication (login)
+ * - Registration with OTP verification
+ * - Password reset and OTP validation
+ * - Profile update with OTP flow (for customer/provider)
+ * - User data retrieval
+ *
+ * This class is used by API endpoints such as login.php, register.php, forgot_password.php, admin_update_customer.php, etc.
+ * All database interactions are handled securely using prepared statements.
+ *
+ * Dependencies:
+ * - db.php: Database connection
+ * - phpmailer.php: For sending OTP and notification emails
+ */
 require_once __DIR__ . '/../api/db.php';
 require_once __DIR__ . '/phpmailer.php';
 
+/**
+ * Class User
+ *
+ * Represents a user in the system (customer, provider, or admin).
+ * Handles authentication, registration, OTP, password reset, and profile updates.
+ *
+ * Properties:
+ * - protected $conn: PDO database connection
+ *
+ * Methods:
+ * - __construct($dbConn = null)
+ * - getUserById($userId)
+ * - login($email, $password)
+ * - register($data)
+ * - verifyOtp($data)
+ * - forgotPassword($email)
+ * - verifyResetOtp($email, $otp)
+ * - resetPassword($email, $otp, $newPassword)
+ * - requestProfileUpdateOtp($data, $purpose)
+ * - verifyProfileUpdateOtp($userId, $otp, $purpose)
+ */
 class User {
     // ...
+    /**
+     * Fetch user details by user ID.
+     *
+     * @param int $userId
+     * @return array|false User data or false if not found
+     *
+     * Used by admin panels or profile endpoints to retrieve user info.
+     */
     public function getUserById($userId) {
         $stmt = $this->conn->prepare("SELECT user_id, email, user_type, name, phone_number, address, registered_date, NIC FROM users WHERE user_id = ?");
         $stmt->execute([$userId]);
@@ -11,11 +59,18 @@ class User {
     }
 
 
+    /**
+     * @var PDO $conn Database connection
+     */
     protected $conn;
     
-
     // ... your existing properties ...
 
+    /**
+     * User constructor.
+     *
+     * @param PDO|null $dbConn Optional PDO connection. If not provided, a new connection is created.
+     */
     public function __construct($dbConn = null) {
         if ($dbConn) {
             $this->conn = $dbConn;
@@ -25,6 +80,16 @@ class User {
         }
     }
 
+    /**
+     * Authenticate a user by email and password.
+     *
+     * @param string $email
+     * @param string $password
+     * @return array Status, user data, and messages
+     *
+     * Called by login API endpoint. Performs validation, password hash verification,
+     * disables access for disabled users, and returns user details.
+     */
     public function login($email, $password) {
         $email = strtolower(trim($email));
         $email = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
@@ -78,6 +143,14 @@ class User {
         ];
     }
 
+    /**
+     * Register a new user and send OTP for verification.
+     *
+     * @param array $data Registration fields (email, fullName, phone, address, password, nic, userType)
+     * @return array Status and message
+     *
+     * Called by register API endpoint. Cleans up expired OTPs, validates input, and saves pending registration.
+     */
     public function register($data) {
         // Cleanup expired registration OTPs
         $cleanupStmt = $this->conn->prepare("DELETE FROM otp WHERE purpose = 'registration' AND expired_at < NOW()");
@@ -152,6 +225,14 @@ class User {
             }
     }
 
+    /**
+     * Verify OTP for registration or other purposes.
+     *
+     * @param array $data (email, otp, purpose)
+     * @return array Status and message
+     *
+     * Called by verify_otp API endpoint. Checks OTP validity and completes registration if valid.
+     */
     public function verifyOtp($data) {
         $email = $data['email'] ?? '';
         $fullName = $data['fullName'] ?? '';
@@ -205,6 +286,14 @@ class User {
         }
     }
 
+    /**
+     * Initiate password reset process by sending OTP to user's email.
+     *
+     * @param string $email
+     * @return array Status and message
+     *
+     * Called by forgot_password API endpoint. Generates OTP and sends email.
+     */
     public function forgotPassword($email) {
         $cleanupStmt = $this->conn->prepare("DELETE FROM otp WHERE purpose = 'password_reset' AND expired_at < NOW()");
         $cleanupStmt->execute();
@@ -236,6 +325,15 @@ class User {
             }
     }
 
+    /**
+     * Verify OTP for password reset.
+     *
+     * @param string $email
+     * @param string $otp
+     * @return array Status and message
+     *
+     * Called by verify_reset_otp API endpoint. Checks OTP validity for password reset.
+     */
     public function verifyResetOtp($email, $otp) {
         $stmt = $this->conn->prepare("SELECT otp_code FROM otp WHERE email = ? AND purpose = 'password_reset' ");
         $stmt->execute([$email]);
@@ -250,6 +348,16 @@ class User {
         return ['status' => 'success', 'message' => 'OTP verified.'];
     }
 
+    /**
+     * Reset user's password after OTP verification.
+     *
+     * @param string $email
+     * @param string $otp
+     * @param string $newPassword
+     * @return array Status and message
+     *
+     * Called by reset_password API endpoint. Updates password if OTP is valid.
+     */
     public function resetPassword($email, $otp, $newPassword) {
         $stmt = $this->conn->prepare("SELECT * FROM otp WHERE email = ? AND otp_code = ? AND purpose = 'password_reset'");
         $stmt->execute([$email, $otp]);
@@ -275,6 +383,15 @@ class User {
      * Request OTP for profile update (customer/provider)
      * @param array $data - profile fields, must include user_id
      * @param string $purpose - 'updateCustomerProfile' or 'updateProviderProfile'
+     */
+    /**
+     * Request OTP for profile update (customer/provider).
+     *
+     * @param array $data Profile fields (must include user_id)
+     * @param string $purpose 'updateCustomerProfile' or 'updateProviderProfile'
+     * @return array Status and message
+     *
+     * Called by profile update API endpoints. Sends OTP for profile update verification.
      */
     public function requestProfileUpdateOtp($data, $purpose) {
         $userId = $data['user_id'] ?? null;
@@ -330,6 +447,17 @@ class User {
      * @param int $userId
      * @param string $otp
      * @param string $purpose
+     */
+    /**
+     * Verify OTP and update profile (customer/provider).
+     *
+     * @param int $userId
+     * @param string $otp
+     * @param string $purpose
+     * @return array Status and message
+     *
+     * Called by profile update API endpoints after OTP is entered by user.
+     * Updates user data if OTP is valid.
      */
     public function verifyProfileUpdateOtp($userId, $otp, $purpose) {
         // Fetch current email

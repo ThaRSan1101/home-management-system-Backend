@@ -1,16 +1,57 @@
 <?php
+/**
+ * Provider.php
+ *
+ * Defines the Provider class, representing a service provider user in the Home Management System backend.
+ *
+ * Responsibilities:
+ * - Encapsulates provider-specific logic and data updates
+ * - Inherits all core user logic from User.php
+ * - Used by provider/admin APIs to update provider profiles securely
+ *
+ * This class is typically used by endpoints such as update_provider_profile.php, admin_update_provider.php, etc.
+ */
 require_once __DIR__ . '/User.php';
 
+/**
+ * Class Provider
+ *
+ * Extends the User class to handle provider-specific actions.
+ *
+ * Methods:
+ * - __construct($dbConn = null)
+ * - getProviderServices()
+ * - updateProfile($data)
+ */
 class Provider extends User {
+    /**
+     * Provider constructor.
+     *
+     * @param PDO|null $dbConn Optional PDO connection. If not provided, inherited constructor creates one.
+     */
     public function __construct($dbConn = null) {
         parent::__construct($dbConn);
     }
 
     // Add provider-specific methods here
+    /**
+     * Get services offered by this provider (stub/example).
+     *
+     * @return array Services (not implemented)
+     */
     public function getProviderServices() {
         // Example: return services offered by this provider
     }
 
+    /**
+     * Update provider profile (admin or provider action).
+     *
+     * @param array $data Provider data fields (must include user_id)
+     * @return array Status and message
+     *
+     * This method is called by update_provider_profile.php, admin_update_provider.php, etc.
+     * Splits updates between users and provider tables, validates uniqueness, and uses transactions for consistency.
+     */
     public function updateProfile($data) {
         $userId = $data['user_id'] ?? null;
         if (!$userId) {
