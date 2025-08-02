@@ -44,13 +44,42 @@ if ($method === 'PATCH') {
 }
 
 if ($method === 'POST') {
-    // Create a new booking
     $input = json_decode(file_get_contents('php://input'), true);
     if (!$input) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid or missing JSON payload.']);
         exit;
     }
-    // Use user_id from JWT if not provided in input
+    // Move booking to provider
+    if (isset($input['action']) && $input['action'] === 'move') {
+        if (!isset($input['service_book_id'], $input['provider_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking or provider ID.']);
+            exit;
+        }
+        $result = $serviceBooking->moveBooking($input['service_book_id'], $input['provider_id']);
+        echo json_encode($result);
+        exit;
+    }
+    // Provider accepts booking
+    if (isset($input['action']) && $input['action'] === 'accept') {
+        if (!isset($input['service_book_id'], $input['provider_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking or provider ID.']);
+            exit;
+        }
+        $result = $serviceBooking->acceptBooking($input['service_book_id'], $input['provider_id']);
+        echo json_encode($result);
+        exit;
+    }
+    // Provider declines booking
+    if (isset($input['action']) && $input['action'] === 'decline') {
+        if (!isset($input['service_book_id'], $input['provider_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking or provider ID.']);
+            exit;
+        }
+        $result = $serviceBooking->declineBooking($input['service_book_id'], $input['provider_id']);
+        echo json_encode($result);
+        exit;
+    }
+    // Default: Create a new booking
     if (!isset($input['user_id'])) {
         $input['user_id'] = $user['user_id'];
     }
@@ -58,6 +87,15 @@ if ($method === 'POST') {
     echo json_encode($result);
     exit;
 }
+
+// Provider dashboard: fetch waiting requests
+if ($method === 'GET' && isset($_GET['provider_requests']) && isset($_GET['provider_id'])) {
+    $provider_id = (int)$_GET['provider_id'];
+    $result = $serviceBooking->getProviderRequests($provider_id);
+    echo json_encode($result);
+    exit;
+}
+
 
 if ($method === 'GET') {
     // Retrieve bookings (optionally filtered by user_id and/or status)
@@ -68,12 +106,19 @@ if ($method === 'GET') {
     } else if ($user && $user['user_type'] === 'customer') {
         $filters['user_id'] = $user['user_id'];
     }
-    if (isset($_GET['status'])) {
-        $filters['status'] = $_GET['status'];
+    if (isset($_GET['provider_id'])) {
+        $filters['provider_id'] = (int)$_GET['provider_id'];
     }
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
-    $result = $serviceBooking->getServiceBooking($filters, $page, $limit);
+    if (isset($_GET['status']) && $_GET['status'] === 'process') {
+        $result = $serviceBooking->getProcessingBookings($filters, $page, $limit);
+    } else {
+        if (isset($_GET['status'])) {
+            $filters['status'] = $_GET['status'];
+        }
+        $result = $serviceBooking->getServiceBooking($filters, $page, $limit);
+    }
     echo json_encode($result);
     exit;
 }
