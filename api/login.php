@@ -41,10 +41,23 @@ $result = $userObj->login($email, $password);
 
 if ($result['status'] === 'success') {
     // Prepare JWT payload
+    // Add provider_id to JWT if provider
+    $provider_id = null;
+    if ($result['user_type'] === 'provider') {
+        require_once __DIR__ . '/../api/db.php';
+        $db = (new DBConnector())->connect();
+        $stmt = $db->prepare('SELECT provider_id FROM provider WHERE user_id = ?');
+        $stmt->execute([$result['user_id']]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $provider_id = $row['provider_id'];
+        }
+    }
     $payload = [
         'user_id'   => $result['user_id'],
         'email'     => $result['email'],
-        'user_type' => $result['user_type']
+        'user_type' => $result['user_type'],
+        'provider_id' => $provider_id
     ];
     // Generate JWT and set cookie
     $token = generate_jwt($payload);
@@ -62,6 +75,7 @@ if ($result['status'] === 'success') {
         'message' => 'Login successful',
         'user_type' => $result['user_type'],
         'user_id' => $result['user_id'],
+        'provider_id' => $provider_id,
         'user_details' => isset($result['user_details']) ? $result['user_details'] : null
     ]);
 } else {
