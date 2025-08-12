@@ -91,7 +91,8 @@ if ($method === 'POST') {
 // Provider dashboard: fetch waiting requests
 if ($method === 'GET' && isset($_GET['provider_requests']) && isset($_GET['provider_id'])) {
     $provider_id = (int)$_GET['provider_id'];
-    $result = $serviceBooking->getProviderRequests($provider_id);
+    $status = isset($_GET['status']) ? $_GET['status'] : null;
+    $result = $serviceBooking->getProviderRequests($provider_id, $status);
     echo json_encode($result);
     exit;
 }
