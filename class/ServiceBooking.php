@@ -202,8 +202,8 @@ class ServiceBooking {
             $where[] = 'spa.provider_id = ?';
             $params[] = $filters['provider_id'];
         }
-        $sql = "SELECT sb.service_book_id, sc.service_name, sb.serbooking_date, sb.service_date, sb.service_time, sb.service_address, sb.phoneNo, sb.amount, sb.serbooking_status, sb.cancel_reason, sb.customer_name, 
-                cu.name AS customer_name, cu.phone_number AS customer_phone, cu.address AS customer_address, 
+        $sql = "SELECT sb.service_book_id, sc.service_name, sb.serbooking_date, sb.service_date, sb.service_time, sb.service_address, sb.phoneNo, sb.amount, sb.serbooking_status, sb.cancel_reason, sb.customer_name AS customer_name, 
+                cu.name AS user_name, cu.phone_number AS customer_phone, cu.address AS customer_address, 
                 pu.name AS provider_name, pu.phone_number AS provider_phone, pu.address AS provider_address,
                 spa.allocated_at
             FROM service_booking sb
@@ -232,17 +232,33 @@ class ServiceBooking {
     }
 
     /**
-     * Get all bookings in 'waiting' status for a provider (new requests).
+     * Get bookings for a provider, filtered by status if provided.
+     * @param int $provider_id
+     * @param string|array|null $status
+     * @param int $page
+     * @param int $limit
+     * @return array
      */
-    public function getProviderRequests($provider_id, $page = 1, $limit = 10) {
-        $sql = "SELECT sb.*, sc.service_name, cu.name AS customer_name, cu.phone_number AS customer_phone
+    public function getProviderRequests($provider_id, $status = null, $page = 1, $limit = 10) {
+        $sql = "SELECT sb.*, sc.service_name, sb.customer_name AS customer_name, cu.name AS user_name, cu.phone_number AS customer_phone
                 FROM {$this->table} sb
                 JOIN service_category sc ON sb.service_category_id = sc.service_category_id
                 JOIN users cu ON sb.user_id = cu.user_id
-                WHERE sb.provider_id = ? AND sb.serbooking_status = 'waiting'
-                ORDER BY sb.serbooking_date DESC
-                LIMIT ? OFFSET ?";
-        $params = [$provider_id, $limit, ($page - 1) * $limit];
+                WHERE sb.provider_id = ?";
+        $params = [$provider_id];
+        if (is_array($status) && count($status) > 0) {
+            $in = str_repeat('?,', count($status) - 1) . '?';
+            $sql .= " AND sb.serbooking_status IN ($in)";
+            $params = array_merge($params, $status);
+        } elseif (!empty($status)) {
+            $sql .= " AND sb.serbooking_status = ?";
+            $params[] = $status;
+        } else {
+            $sql .= " AND sb.serbooking_status = 'waiting'";
+        }
+        $sql .= " ORDER BY sb.serbooking_date DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = ($page - 1) * $limit;
         try {
             $stmt = $this->conn->prepare($sql);
             $stmt->execute($params);
@@ -258,4 +274,5 @@ class ServiceBooking {
         }
     }
 }
+
 
