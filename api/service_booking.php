@@ -112,16 +112,20 @@ if ($method === 'GET') {
     }
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
-    if (isset($_GET['status']) && $_GET['status'] === 'process') {
-        $result = $serviceBooking->getProcessingBookings($filters, $page, $limit);
+    $status = isset($_GET['status']) ? $_GET['status'] : null;
+    if ($status === 'process' || $status === 'cancel') {
+        $filters['status'] = $status;
+        $result = $serviceBooking->getAdminBookings($filters, $page, $limit);
+        echo json_encode($result);
+        exit;
     } else {
         if (isset($_GET['status'])) {
             $filters['status'] = $_GET['status'];
         }
         $result = $serviceBooking->getServiceBooking($filters, $page, $limit);
+        echo json_encode($result);
+        exit;
     }
-    echo json_encode($result);
-    exit;
 }
 
 // If not POST or GET

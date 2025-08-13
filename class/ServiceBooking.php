@@ -93,14 +93,20 @@ class ServiceBooking {
         $where = [];
         $params = [];
         if (!empty($filters['user_id'])) {
-            $where[] = 'user_id = ?';
+            $where[] = 'sb.user_id = ?';
             $params[] = $filters['user_id'];
         }
         if (!empty($filters['status'])) {
-            $where[] = 'serbooking_status = ?';
+            $where[] = 'sb.serbooking_status = ?';
             $params[] = $filters['status'];
         }
-        $sql = "SELECT sb.*, sc.service_name FROM {$this->table} sb JOIN service_category sc ON sb.service_category_id = sc.service_category_id";
+        $sql = "SELECT sb.*, sc.service_name, 
+                spa.allocated_at, 
+                pu.name AS provider_name, pu.phone_number AS provider_phone, pu.address AS provider_address
+            FROM {$this->table} sb 
+            JOIN service_category sc ON sb.service_category_id = sc.service_category_id
+            LEFT JOIN service_provider_allocation spa ON sb.service_book_id = spa.service_book_id
+            LEFT JOIN users pu ON spa.provider_id = pu.user_id";
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
         }
@@ -182,16 +188,21 @@ class ServiceBooking {
     }
 
     /**
-     * Get all bookings with status 'process' (processing), joined with service, customer, and provider details.
+     * Get all bookings with status 'process' (processing) or 'cancel', joined with service, customer, and provider details.
      *
-     * @param array $filters Optional: ['user_id'=>int (for customer), 'provider_id'=>int (for provider), 'admin'=>bool]
+     * @param array $filters Optional: ['user_id'=>int (for customer), 'provider_id'=>int (for provider), 'admin'=>bool, 'status'=>string]
      * @param int $page Pagination page (default 1)
      * @param int $limit Results per page (default 10)
      * @return array List of bookings with full details
      */
-    public function getProcessingBookings($filters = [], $page = 1, $limit = 10) {
-        $where = ["sb.serbooking_status = 'process'"];
+    public function getAdminBookings($filters = [], $page = 1, $limit = 10) {
+        $where = [];
         $params = [];
+        // Filter for status (pending/waiting/process/complete/cancel)
+        if (!empty($filters['status'])) {
+            $where[] = 'sb.serbooking_status = ?';
+            $params[] = $filters['status'];
+        }
         // Filter for customer
         if (!empty($filters['user_id'])) {
             $where[] = 'sb.user_id = ?';
@@ -204,13 +215,16 @@ class ServiceBooking {
         }
         $sql = "SELECT sb.service_book_id, sc.service_name, sb.serbooking_date, sb.service_date, sb.service_time, sb.service_address, sb.phoneNo, sb.amount, sb.serbooking_status, sb.cancel_reason, sb.customer_name AS customer_name, 
                 cu.name AS user_name, cu.phone_number AS customer_phone, cu.address AS customer_address, 
-                pu.name AS provider_name, pu.phone_number AS provider_phone, pu.address AS provider_address,
+                COALESCE(u_provider.name, 'Unassigned') AS provider_name,
+                COALESCE(u_provider.phone_number, '') AS provider_phone,
+                COALESCE(u_provider.address, '') AS provider_address,
                 spa.allocated_at
             FROM service_booking sb
             JOIN service_category sc ON sb.service_category_id = sc.service_category_id
-            JOIN service_provider_allocation spa ON sb.service_book_id = spa.service_book_id
+            LEFT JOIN service_provider_allocation spa ON sb.service_book_id = spa.service_book_id
             JOIN users cu ON sb.user_id = cu.user_id
-            JOIN users pu ON spa.provider_id = pu.user_id
+            LEFT JOIN provider p ON sb.provider_id = p.provider_id
+            LEFT JOIN users u_provider ON p.user_id = u_provider.user_id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY sb.serbooking_date DESC
             LIMIT ? OFFSET ?";
@@ -223,6 +237,9 @@ class ServiceBooking {
             foreach ($results as &$row) {
                 if (isset($row['serbooking_status'])) {
                     $row['serbooking_status'] = strtolower($row['serbooking_status']);
+                }
+                if (!isset($row['provider_name']) || $row['provider_name'] === null || $row['provider_name'] === '') {
+                    $row['provider_name'] = 'Unassigned';
                 }
             }
             return ['status' => 'success', 'data' => $results];
