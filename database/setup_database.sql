@@ -72,7 +72,7 @@ CREATE TABLE service_booking (
     service_book_id INT AUTO_INCREMENT PRIMARY KEY,
     service_category_id INT NOT NULL,
     user_id INT NOT NULL,
-    serbooking_status ENUM('pending', 'process', 'complete', 'cancel') NOT NULL DEFAULT 'pending',
+    serbooking_status ENUM('pending', 'waiting', 'process', 'request', 'complete', 'cancel') NOT NULL DEFAULT 'pending',
     serbooking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     service_date DATE,
     service_time TIME,

@@ -34,13 +34,33 @@ $serviceBooking = new ServiceBooking();
 
 if ($method === 'PATCH') {
     $input = json_decode(file_get_contents('php://input'), true);
-    if (!isset($input['service_book_id']) || !isset($input['cancel_reason'])) {
-        echo json_encode(['status' => 'error', 'message' => 'Missing booking ID or cancel reason.']);
+    if (isset($input['action']) && $input['action'] === 'provider_complete') {
+        if (!isset($input['service_book_id'], $input['service_amount'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking ID or service amount.']);
+            exit;
+        }
+        $result = $serviceBooking->providerCompleteBooking($input['service_book_id'], $input['service_amount']);
+        echo json_encode($result);
         exit;
     }
-    $result = $serviceBooking->cancelBooking($input['service_book_id'], $input['cancel_reason']);
-    echo json_encode($result);
-    exit;
+    if (isset($input['action']) && $input['action'] === 'customer_accept') {
+        if (!isset($input['service_book_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking ID.']);
+            exit;
+        }
+        $result = $serviceBooking->customerAcceptBooking($input['service_book_id']);
+        echo json_encode($result);
+        exit;
+    }
+    if (isset($input['action']) && $input['action'] === 'cancel') {
+        if (!isset($input['service_book_id']) || !isset($input['cancel_reason'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking ID or cancel reason.']);
+            exit;
+        }
+        $result = $serviceBooking->cancelBooking($input['service_book_id'], $input['cancel_reason']);
+        echo json_encode($result);
+        exit;
+    }
 }
 
 if ($method === 'POST') {
