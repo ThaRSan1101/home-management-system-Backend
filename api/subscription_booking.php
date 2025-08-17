@@ -1,17 +1,10 @@
 <?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 // subscription_booking.php
 // API endpoint for subscription booking creation, retrieval, and cancellation
 // Accepts POST, GET, PATCH requests
 
 $allowed_origins = [
     'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000',
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowed_origins)) {
