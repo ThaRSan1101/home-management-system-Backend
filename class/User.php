@@ -177,6 +177,18 @@ class User {
         if (!$email || !$fullName || !$phone || !$address || !$password) {
             return ['status' => 'error', 'message' => 'All fields are required.'];
         }
+        // Phone: must be 10 digits
+        if (!preg_match('/^\d{10}$/', $phone)) {
+            return ['status' => 'error', 'message' => 'Phone number must be exactly 10 digits.'];
+        }
+        // Address: minimum 4 characters
+        if (strlen(trim($address)) < 4) {
+            return ['status' => 'error', 'message' => 'Address must be at least 4 characters.'];
+        }
+        // Password strength: min 8 chars, at least 1 letter, 1 number, 1 special char
+        if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/', $password)) {
+            return ['status' => 'error', 'message' => 'Password must be at least 8 characters and include at least one letter, one number, and one special character.'];
+        }
         $checkStmt = $this->conn->prepare("SELECT user_id FROM users WHERE email = ?");
         $checkStmt->execute([$email]);
         if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
