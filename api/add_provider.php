@@ -22,7 +22,6 @@ require_once __DIR__ . '/../api/PHPMailer/SMTP.php';
 require_once __DIR__ . '/../api/PHPMailer/Exception.php';
 require_once __DIR__ . '/../class/Admin.php';
 require_once __DIR__ . '/auth.php'; // Add auth middleware
-// require_once __DIR__ . '/_headers.php';         // Centralized headers
 
 // Set CORS and credentials headers
 header('Access-Control-Allow-Origin: http://localhost:5173');
