@@ -146,6 +146,6 @@ if ($method === 'GET') {
     }
 }
 
-// If not POST or GET
+// If not POST, GET, or PATCH
 http_response_code(405);
-echo json_encode(['status' => 'error', 'message' => 'Method Not Allowed.']);
+echo json_encode(['status' => 'error', 'message' => 'Method Not Allowed. Only GET, POST, and PATCH methods are supported.']);
