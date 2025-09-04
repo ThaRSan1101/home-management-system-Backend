@@ -29,11 +29,8 @@ $action = $_GET['action'] ?? '';
 $notificationObj = new Notification();
 
 try {
-    if ($action === 'get_admin_count') {
-        $result = $notificationObj->getAdminNotificationCount();
-        echo json_encode($result);
-    } elseif ($action === 'mark_admin_hidden') {
-        $result = $notificationObj->markAdminNotificationsAsHidden();
+    if ($action === 'mark_customer_registration_hidden') {
+        $result = $notificationObj->markCustomerRegistrationNotificationsAsHidden();
         echo json_encode($result);
     } elseif ($action === 'get_pending_service_count') {
         $result = $notificationObj->getPendingServiceBookingCount();
@@ -41,8 +38,17 @@ try {
     } elseif ($action === 'get_pending_subscription_count') {
         $result = $notificationObj->getPendingSubscriptionBookingCount();
         echo json_encode($result);
+    } elseif ($action === 'get_new_service_booking_count') {
+        $result = $notificationObj->getNewServiceBookingNotificationCount();
+        echo json_encode($result);
+    } elseif ($action === 'get_customer_registration_count') {
+        $result = $notificationObj->getCustomerRegistrationNotificationCount();
+        echo json_encode($result);
+    } elseif ($action === 'mark_single_service_booking_hidden') {
+        $result = $notificationObj->markSingleServiceBookingNotificationAsHidden();
+        echo json_encode($result);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: get_admin_count, mark_admin_hidden, get_pending_service_count, get_pending_subscription_count']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: mark_customer_registration_hidden, get_pending_service_count, get_pending_subscription_count, get_new_service_booking_count, get_customer_registration_count, mark_single_service_booking_hidden']);
     }
 } catch (Exception $e) {
     echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
