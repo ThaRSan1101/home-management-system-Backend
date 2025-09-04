@@ -210,4 +210,74 @@ class Provider extends User {
             return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Get dashboard statistics for a provider.
+     *
+     * Returns counts for:
+     * - bookings: service + subscription bookings with status 'waiting'
+     * - subscriptions: subscription bookings with status in ('process','cancel')
+     * - services: service bookings with status in ('process','cancel','request','complete')
+     * - feedback: total feedback from service_review and subscription_review linked to provider
+     *
+     * @param int $providerId
+     * @return array
+     */
+    public function getDashboardStats($providerId) {
+        try {
+            // Booking Requests (waiting)
+            $stmt1 = $this->conn->prepare("SELECT COUNT(*) AS c FROM service_booking WHERE provider_id = ? AND serbooking_status = 'waiting'");
+            $stmt1->execute([$providerId]);
+            $serviceWaiting = (int)$stmt1->fetchColumn();
+
+            $stmt2 = $this->conn->prepare("SELECT COUNT(*) AS c FROM subscription_booking WHERE provider_id = ? AND subbooking_status = 'waiting'");
+            $stmt2->execute([$providerId]);
+            $subscriptionWaiting = (int)$stmt2->fetchColumn();
+
+            $bookings = $serviceWaiting + $subscriptionWaiting;
+
+            // Total Subscriptions (process, cancel)
+            $stmt3 = $this->conn->prepare("SELECT COUNT(*) AS c FROM subscription_booking WHERE provider_id = ? AND subbooking_status IN ('process','cancel')");
+            $stmt3->execute([$providerId]);
+            $subscriptions = (int)$stmt3->fetchColumn();
+
+            // Total Services (process, cancel, request, complete)
+            $stmt4 = $this->conn->prepare("SELECT COUNT(*) AS c FROM service_booking WHERE provider_id = ? AND serbooking_status IN ('process','cancel','request','complete')");
+            $stmt4->execute([$providerId]);
+            $services = (int)$stmt4->fetchColumn();
+
+            // Total Feedback from both review tables via allocations
+            $serviceFeedback = 0;
+            try {
+                $sf = $this->conn->prepare("SELECT COUNT(*) FROM service_review sr JOIN service_provider_allocation spa ON sr.allocation_id = spa.allocation_id WHERE spa.provider_id = ?");
+                $sf->execute([$providerId]);
+                $serviceFeedback = (int)$sf->fetchColumn();
+            } catch (PDOException $e) {
+                $serviceFeedback = 0;
+            }
+
+            $subscriptionFeedback = 0;
+            try {
+                $ss = $this->conn->prepare("SELECT COUNT(*) FROM subscription_review sr JOIN subscription_provider_allocation spa ON sr.allocation_id = spa.allocation_id WHERE spa.provider_id = ?");
+                $ss->execute([$providerId]);
+                $subscriptionFeedback = (int)$ss->fetchColumn();
+            } catch (PDOException $e) {
+                $subscriptionFeedback = 0;
+            }
+
+            $feedback = $serviceFeedback + $subscriptionFeedback;
+
+            return [
+                'status' => 'success',
+                'data' => [
+                    'bookings' => $bookings,
+                    'subscriptions' => $subscriptions,
+                    'services' => $services,
+                    'feedback' => $feedback,
+                ]
+            ];
+        } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Failed to fetch stats: ' . $e->getMessage()];
+        }
+    }
 }
