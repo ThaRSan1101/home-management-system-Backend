@@ -77,4 +77,55 @@ class Notification {
             return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
         }
     }
+
+    /**
+     * Get pending service booking count.
+     *
+     * @return array Status and count
+     */
+    public function getPendingServiceBookingCount() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM service_booking 
+                WHERE serbooking_status = 'pending'
+            ");
+            
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'status' => 'success',
+                'count' => (int)$result['count']
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get pending subscription booking count.
+     *
+     * @return array Status and count
+     */
+    public function getPendingSubscriptionBookingCount() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM subscription_booking 
+                WHERE subbooking_status = 'pending'
+            ");
+            
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'status' => 'success',
+                'count' => (int)$result['count']
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
 }

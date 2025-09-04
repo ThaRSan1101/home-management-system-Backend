@@ -35,8 +35,14 @@ try {
     } elseif ($action === 'mark_admin_hidden') {
         $result = $notificationObj->markAdminNotificationsAsHidden();
         echo json_encode($result);
+    } elseif ($action === 'get_pending_service_count') {
+        $result = $notificationObj->getPendingServiceBookingCount();
+        echo json_encode($result);
+    } elseif ($action === 'get_pending_subscription_count') {
+        $result = $notificationObj->getPendingSubscriptionBookingCount();
+        echo json_encode($result);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: get_admin_count, mark_admin_hidden']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: get_admin_count, mark_admin_hidden, get_pending_service_count, get_pending_subscription_count']);
     }
 } catch (Exception $e) {
     echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
