@@ -50,6 +50,9 @@ try {
     } elseif ($action === 'get_admin_canceled_service_count') {
         $result = $notificationObj->getAdminCanceledServiceBookingCount();
         echo json_encode($result);
+    } elseif ($action === 'get_admin_completed_service_count') {
+        $result = $notificationObj->getAdminCompletedServiceBookingCount();
+        echo json_encode($result);
     } elseif ($action === 'hide_single_admin_canceled_service') {
         $result = $notificationObj->hideSingleAdminCanceledServiceBooking();
         echo json_encode($result);
@@ -88,6 +91,14 @@ try {
         }
         $result = $notificationObj->getProviderCanceledServiceBookingCount($provider_id);
         echo json_encode($result);
+    } elseif ($action === 'get_provider_completed_service_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderCompletedServiceBookingCount($provider_id);
+        echo json_encode($result);
     } elseif ($action === 'hide_single_provider_canceled_service') {
         $provider_id = $_GET['provider_id'] ?? null;
         if (!$provider_id) {
@@ -112,6 +123,14 @@ try {
         }
         $result = $notificationObj->getCustomerCanceledServiceBookingCount($user_id);
         echo json_encode($result);
+    } elseif ($action === 'get_customer_completed_service_count') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getCustomerCompletedServiceBookingCount($user_id);
+        echo json_encode($result);
     } elseif ($action === 'hide_single_customer_canceled_service') {
         $user_id = $_GET['user_id'] ?? null;
         if (!$user_id) {
@@ -127,6 +146,15 @@ try {
             exit;
         }
         $result = $notificationObj->getCustomerActiveNotifications($user_id);
+        echo json_encode($result);
+    } elseif ($action === 'hide_notification_by_id') {
+        $notification_id = $_GET['notification_id'] ?? null;
+        $role = $_GET['role'] ?? null;
+        if (!$notification_id || !$role) {
+            echo json_encode(['status' => 'error', 'message' => 'notification_id and role are required.']);
+            exit;
+        }
+        $result = $notificationObj->hideNotificationById((int)$notification_id, $role);
         echo json_encode($result);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions include admin/provider/customer canceled service endpoints.']);

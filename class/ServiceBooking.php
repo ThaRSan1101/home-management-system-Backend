@@ -480,6 +480,20 @@ class ServiceBooking {
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET serbooking_status = 'complete' WHERE service_book_id = ? AND serbooking_status = 'request'");
             $stmt->execute([$service_book_id]);
             if ($stmt->rowCount() > 0) {
+                // Fetch user and provider to generate notifications
+                $fetchStmt = $this->conn->prepare("SELECT user_id FROM {$this->table} WHERE service_book_id = ?");
+                $fetchStmt->execute([$service_book_id]);
+                $row = $fetchStmt->fetch(PDO::FETCH_ASSOC);
+                $userId = $row ? (int)$row['user_id'] : null;
+                $providerId = $this->resolveProviderIdForBooking($service_book_id);
+                if ($userId && $providerId) {
+                    $notificationStmt = $this->conn->prepare("
+                        INSERT INTO notification 
+                        (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                        VALUES (?, ?, ?, NULL, 'Service booking is completed', 'active', 'active', 'active')
+                    ");
+                    $notificationStmt->execute([$userId, $providerId, $service_book_id]);
+                }
                 return ['status' => 'success', 'message' => 'Booking marked as complete.'];
             } else {
                 return ['status' => 'error', 'message' => 'Booking not found or not in request state.'];
