@@ -303,4 +303,190 @@ class Notification {
             return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage(), 'provider_id' => null];
         }
     }
+
+    // ---------------- CANCELLATION NOTIFICATIONS ----------------
+
+    /**
+     * Count admin-visible canceled service booking notifications.
+     */
+    public function getAdminCanceledServiceBookingCount() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM notification 
+                WHERE description = 'Service booking is canceled' AND admin_action = 'active'
+            ");
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Hide oldest admin-visible canceled service booking notification.
+     */
+    public function hideSingleAdminCanceledServiceBooking() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id FROM notification
+                WHERE description = 'Service booking is canceled' AND admin_action = 'active'
+                ORDER BY notification_id ASC LIMIT 1
+            ");
+            $stmt->execute();
+            $n = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$n) {
+                return ['status' => 'success', 'message' => 'No active canceled notifications to hide.'];
+            }
+            $up = $this->conn->prepare("UPDATE notification SET admin_action = 'hidden' WHERE notification_id = ?");
+            $up->execute([$n['notification_id']]);
+            return ['status' => 'success', 'message' => 'Marked 1 canceled notification as hidden.'];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Count provider-visible canceled service booking notifications for a provider.
+     */
+    public function getProviderCanceledServiceBookingCount($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count FROM notification
+                WHERE provider_id = ? AND description = 'Service booking is canceled' AND provider_action = 'active'
+            ");
+            $stmt->execute([$provider_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Hide oldest provider-visible canceled service booking notification for a provider.
+     */
+    public function hideSingleProviderCanceledServiceBooking($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id FROM notification
+                WHERE provider_id = ? AND description = 'Service booking is canceled' AND provider_action = 'active'
+                ORDER BY notification_id ASC LIMIT 1
+            ");
+            $stmt->execute([$provider_id]);
+            $n = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$n) {
+                return ['status' => 'success', 'message' => 'No active canceled notifications to hide.'];
+            }
+            $up = $this->conn->prepare("UPDATE notification SET provider_action = 'hidden' WHERE notification_id = ?");
+            $up->execute([$n['notification_id']]);
+            return ['status' => 'success', 'message' => 'Marked 1 canceled notification as hidden.'];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Count customer-visible canceled service booking notifications for a user.
+     */
+    public function getCustomerCanceledServiceBookingCount($user_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count FROM notification
+                WHERE user_id = ? AND description = 'Service booking is canceled' AND customer_action = 'active'
+            ");
+            $stmt->execute([$user_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Hide oldest customer-visible canceled service booking notification for a user.
+     */
+    public function hideSingleCustomerCanceledServiceBooking($user_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id FROM notification
+                WHERE user_id = ? AND description = 'Service booking is canceled' AND customer_action = 'active'
+                ORDER BY notification_id ASC LIMIT 1
+            ");
+            $stmt->execute([$user_id]);
+            $n = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$n) {
+                return ['status' => 'success', 'message' => 'No active canceled notifications to hide.'];
+            }
+            $up = $this->conn->prepare("UPDATE notification SET customer_action = 'hidden' WHERE notification_id = ?");
+            $up->execute([$n['notification_id']]);
+            return ['status' => 'success', 'message' => 'Marked 1 canceled notification as hidden.'];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    // ---------------- FETCH ACTIVE NOTIFICATIONS (DETAILS) ----------------
+
+    /**
+     * Get admin-visible active notifications (new service bookings and canceled bookings).
+     * Returns an array of { notification_id, description, created_at }.
+     */
+    public function getAdminActiveNotifications() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id, description, created_at
+                FROM notification
+                WHERE admin_action = 'active' AND description IN ('New service booking', 'Service booking is canceled')
+                ORDER BY notification_id DESC
+            ");
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'data' => $rows];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get provider-visible active notifications for given provider.
+     * Returns an array of { notification_id, description, created_at }.
+     */
+    public function getProviderActiveNotifications($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id, description, created_at
+                FROM notification
+                WHERE provider_id = ? AND provider_action = 'active'
+                AND description IN ('You have a new service request', 'Service booking is canceled')
+                ORDER BY notification_id DESC
+            ");
+            $stmt->execute([$provider_id]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'data' => $rows];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get customer-visible active notifications for given user.
+     * Returns an array of { notification_id, description, created_at }.
+     */
+    public function getCustomerActiveNotifications($user_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT notification_id, description, created_at
+                FROM notification
+                WHERE user_id = ? AND customer_action = 'active'
+                ORDER BY notification_id DESC
+            ");
+            $stmt->execute([$user_id]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'data' => $rows];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
 }

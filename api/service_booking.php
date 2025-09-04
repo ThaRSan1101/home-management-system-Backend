@@ -59,6 +59,15 @@ if ($method === 'PATCH') {
         echo json_encode($result);
         exit;
     }
+    if (isset($input['action']) && $input['action'] === 'provider_cancel') {
+        if (!isset($input['service_book_id'], $input['provider_id'], $input['cancel_reason'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing booking ID, provider ID, or cancel reason.']);
+            exit;
+        }
+        $result = $serviceBooking->cancelBookingByProvider($input['service_book_id'], $input['provider_id'], $input['cancel_reason']);
+        echo json_encode($result);
+        exit;
+    }
 }
 
 if ($method === 'POST') {

@@ -47,6 +47,15 @@ try {
     } elseif ($action === 'mark_single_service_booking_hidden') {
         $result = $notificationObj->markSingleServiceBookingNotificationAsHidden();
         echo json_encode($result);
+    } elseif ($action === 'get_admin_canceled_service_count') {
+        $result = $notificationObj->getAdminCanceledServiceBookingCount();
+        echo json_encode($result);
+    } elseif ($action === 'hide_single_admin_canceled_service') {
+        $result = $notificationObj->hideSingleAdminCanceledServiceBooking();
+        echo json_encode($result);
+    } elseif ($action === 'get_admin_active_notifications') {
+        $result = $notificationObj->getAdminActiveNotifications();
+        echo json_encode($result);
     } elseif ($action === 'get_provider_id_by_user') {
         $user_id = $_GET['user_id'] ?? null;
         if (!$user_id) {
@@ -71,8 +80,56 @@ try {
         }
         $result = $notificationObj->markSingleProviderServiceRequestNotificationAsHidden($provider_id);
         echo json_encode($result);
+    } elseif ($action === 'get_provider_canceled_service_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderCanceledServiceBookingCount($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'hide_single_provider_canceled_service') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->hideSingleProviderCanceledServiceBooking($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_provider_active_notifications') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderActiveNotifications($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_customer_canceled_service_count') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getCustomerCanceledServiceBookingCount($user_id);
+        echo json_encode($result);
+    } elseif ($action === 'hide_single_customer_canceled_service') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->hideSingleCustomerCanceledServiceBooking($user_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_customer_active_notifications') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getCustomerActiveNotifications($user_id);
+        echo json_encode($result);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: mark_customer_registration_hidden, get_pending_service_count, get_pending_subscription_count, get_new_service_booking_count, get_customer_registration_count, mark_single_service_booking_hidden, get_provider_service_request_count, mark_single_provider_service_request_hidden']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions include admin/provider/customer canceled service endpoints.']);
     }
 } catch (Exception $e) {
     echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);
