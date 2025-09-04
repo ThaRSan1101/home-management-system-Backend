@@ -385,6 +385,20 @@ class Notification {
     }
 
     /**
+     * Count admin-visible 'Subscription service is completed' notifications.
+     */
+    public function getAdminSubscriptionCompletedCount() {
+        try {
+            $stmt = $this->conn->prepare("\n                SELECT COUNT(*) as count\n                FROM notification \n                WHERE description = 'Subscription service is completed' AND admin_action = 'active'\n            ");
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Hide oldest admin-visible canceled service booking notification.
      */
     public function hideSingleAdminCanceledServiceBooking() {
@@ -430,6 +444,20 @@ class Notification {
     public function getProviderCompletedServiceBookingCount($provider_id) {
         try {
             $stmt = $this->conn->prepare("\n                SELECT COUNT(*) as count FROM notification\n                WHERE provider_id = ? AND description = 'Service booking is completed' AND provider_action = 'active'\n            ");
+            $stmt->execute([$provider_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Count provider-visible 'Subscription service is completed' notifications.
+     */
+    public function getProviderSubscriptionCompletedCount($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("\n                SELECT COUNT(*) as count FROM notification\n                WHERE provider_id = ? AND description = 'Subscription service is completed' AND provider_action = 'active'\n            ");
             $stmt->execute([$provider_id]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             return ['status' => 'success', 'count' => (int)$row['count']];
@@ -493,6 +521,20 @@ class Notification {
     }
 
     /**
+     * Count customer-visible 'Subscription service is completed' notifications.
+     */
+    public function getCustomerSubscriptionCompletedCount($user_id) {
+        try {
+            $stmt = $this->conn->prepare("\n                SELECT COUNT(*) as count FROM notification\n                WHERE user_id = ? AND description = 'Subscription service is completed' AND customer_action = 'active'\n            ");
+            $stmt->execute([$user_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return ['status' => 'success', 'count' => (int)$row['count']];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Hide oldest customer-visible canceled service booking notification for a user.
      */
     public function hideSingleCustomerCanceledServiceBooking($user_id) {
@@ -526,7 +568,7 @@ class Notification {
             $stmt = $this->conn->prepare("
                 SELECT notification_id, description, created_at
                 FROM notification
-                WHERE admin_action = 'active' AND description IN ('New service booking', 'New subscription service booking', 'Service booking is canceled', 'Service booking is completed')
+                WHERE admin_action = 'active' AND description IN ('New service booking', 'New subscription service booking', 'Service booking is canceled', 'Service booking is completed', 'Subscription service is completed')
                 ORDER BY notification_id DESC
             ");
             $stmt->execute();
@@ -547,7 +589,7 @@ class Notification {
                 SELECT notification_id, description, created_at
                 FROM notification
                 WHERE provider_id = ? AND provider_action = 'active'
-                AND description IN ('You have a new service request', 'You have a new subscription service request', 'Service booking is canceled', 'Service booking is completed')
+                AND description IN ('You have a new service request', 'You have a new subscription service request', 'Service booking is canceled', 'Service booking is completed', 'Subscription service is completed')
                 ORDER BY notification_id DESC
             ");
             $stmt->execute([$provider_id]);

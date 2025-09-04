@@ -80,8 +80,24 @@ class SubscriptionBooking {
      */
     public function cancelBooking($subbook_id, $cancel_reason) {
         try {
+            // Fetch context to populate notification
+            $ctxStmt = $this->conn->prepare("SELECT user_id, provider_id, subbooking_status FROM {$this->table} WHERE subbook_id = ?");
+            $ctxStmt->execute([$subbook_id]);
+            $ctx = $ctxStmt->fetch(PDO::FETCH_ASSOC);
+
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET subbooking_status = 'cancel', cancel_reason = ? WHERE subbook_id = ?");
             $stmt->execute([$cancel_reason, $subbook_id]);
+
+            // When customer unsubscribes during processing, create a completion-like notification for all roles
+            if ($ctx && strtolower((string)$ctx['subbooking_status']) === 'process' && !empty($ctx['user_id']) && !empty($ctx['provider_id'])) {
+                $notifStmt = $this->conn->prepare("
+                    INSERT INTO notification 
+                    (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action)
+                    VALUES (?, ?, NULL, ?, 'Subscription service is completed', 'active', 'active', 'active')
+                ");
+                $notifStmt->execute([$ctx['user_id'], $ctx['provider_id'], $subbook_id]);
+            }
+
             return ['status' => 'success', 'message' => 'Booking cancelled successfully.'];
         } catch (PDOException $e) {
             return ['status' => 'error', 'message' => 'Cancellation failed: ' . $e->getMessage()];
