@@ -41,6 +41,9 @@ try {
     } elseif ($action === 'get_new_service_booking_count') {
         $result = $notificationObj->getNewServiceBookingNotificationCount();
         echo json_encode($result);
+    } elseif ($action === 'get_new_subscription_booking_count') {
+        $result = $notificationObj->getNewSubscriptionBookingNotificationCount();
+        echo json_encode($result);
     } elseif ($action === 'get_customer_registration_count') {
         $result = $notificationObj->getCustomerRegistrationNotificationCount();
         echo json_encode($result);
@@ -52,6 +55,9 @@ try {
         echo json_encode($result);
     } elseif ($action === 'get_admin_completed_service_count') {
         $result = $notificationObj->getAdminCompletedServiceBookingCount();
+        echo json_encode($result);
+    } elseif ($action === 'get_admin_subscription_completed_count') {
+        $result = $notificationObj->getAdminSubscriptionCompletedCount();
         echo json_encode($result);
     } elseif ($action === 'hide_single_admin_canceled_service') {
         $result = $notificationObj->hideSingleAdminCanceledServiceBooking();
@@ -74,6 +80,14 @@ try {
             exit;
         }
         $result = $notificationObj->getProviderServiceRequestNotificationCount($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_provider_subscription_request_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderSubscriptionRequestNotificationCount($provider_id);
         echo json_encode($result);
     } elseif ($action === 'mark_single_provider_service_request_hidden') {
         $provider_id = $_GET['provider_id'] ?? null;
@@ -98,6 +112,14 @@ try {
             exit;
         }
         $result = $notificationObj->getProviderCompletedServiceBookingCount($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_provider_subscription_completed_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderSubscriptionCompletedCount($provider_id);
         echo json_encode($result);
     } elseif ($action === 'hide_single_provider_canceled_service') {
         $provider_id = $_GET['provider_id'] ?? null;
@@ -130,6 +152,14 @@ try {
             exit;
         }
         $result = $notificationObj->getCustomerCompletedServiceBookingCount($user_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_customer_subscription_completed_count') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getCustomerSubscriptionCompletedCount($user_id);
         echo json_encode($result);
     } elseif ($action === 'hide_single_customer_canceled_service') {
         $user_id = $_GET['user_id'] ?? null;
