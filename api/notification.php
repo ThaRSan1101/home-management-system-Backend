@@ -47,8 +47,32 @@ try {
     } elseif ($action === 'mark_single_service_booking_hidden') {
         $result = $notificationObj->markSingleServiceBookingNotificationAsHidden();
         echo json_encode($result);
+    } elseif ($action === 'get_provider_id_by_user') {
+        $user_id = $_GET['user_id'] ?? null;
+        if (!$user_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderIdByUserId($user_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_provider_service_request_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderServiceRequestNotificationCount($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'mark_single_provider_service_request_hidden') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->markSingleProviderServiceRequestNotificationAsHidden($provider_id);
+        echo json_encode($result);
     } else {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: mark_customer_registration_hidden, get_pending_service_count, get_pending_subscription_count, get_new_service_booking_count, get_customer_registration_count, mark_single_service_booking_hidden']);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid action. Supported actions: mark_customer_registration_hidden, get_pending_service_count, get_pending_subscription_count, get_new_service_booking_count, get_customer_registration_count, mark_single_service_booking_hidden, get_provider_service_request_count, mark_single_provider_service_request_hidden']);
     }
 } catch (Exception $e) {
     echo json_encode(['status' => 'error', 'message' => 'Server error: ' . $e->getMessage()]);

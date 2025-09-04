@@ -208,4 +208,99 @@ class Notification {
         }
     }
 
+    /**
+     * Get provider service request notifications count.
+     * Only counts notifications with description = "You have a new service request" 
+     * and provider_action = "active" for a specific provider.
+     *
+     * @param int $provider_id The provider's ID
+     * @return array Status and count
+     */
+    public function getProviderServiceRequestNotificationCount($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM notification 
+                WHERE provider_id = ? AND description = 'You have a new service request' AND provider_action = 'active'
+            ");
+            
+            $stmt->execute([$provider_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'status' => 'success',
+                'count' => (int)$result['count']
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Mark a single provider service request notification as hidden by hiding the oldest one.
+     * This method hides the oldest notification with description = "You have a new service request"
+     * and provider_action = 'active' for a specific provider.
+     *
+     * @param int $provider_id The provider's ID
+     * @return array Status and message
+     */
+    public function markSingleProviderServiceRequestNotificationAsHidden($provider_id) {
+        try {
+            // First, get the oldest provider service request notification
+            $stmt = $this->conn->prepare("
+                SELECT notification_id 
+                FROM notification 
+                WHERE provider_id = ? AND provider_action = 'active' AND description = 'You have a new service request'
+                ORDER BY notification_id ASC 
+                LIMIT 1
+            ");
+            
+            $stmt->execute([$provider_id]);
+            $notification = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$notification) {
+                return [
+                    'status' => 'success', 
+                    'message' => "No active service request notifications to hide."
+                ];
+            }
+            
+            // Hide the specific notification
+            $updateStmt = $this->conn->prepare("
+                UPDATE notification 
+                SET provider_action = 'hidden' 
+                WHERE notification_id = ?
+            ");
+            
+            $result = $updateStmt->execute([$notification['notification_id']]);
+            $affectedRows = $updateStmt->rowCount();
+
+            return [
+                'status' => 'success', 
+                'message' => "Marked 1 service request notification as hidden."
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Resolve provider_id from a given user_id.
+     *
+     * @param int $user_id
+     * @return array { status, provider_id|null, message? }
+     */
+    public function getProviderIdByUserId($user_id) {
+        try {
+            $stmt = $this->conn->prepare("SELECT provider_id FROM provider WHERE user_id = ? LIMIT 1");
+            $stmt->execute([$user_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && isset($row['provider_id'])) {
+                return ['status' => 'success', 'provider_id' => (int)$row['provider_id']];
+            }
+            return ['status' => 'error', 'message' => 'Provider not found for user', 'provider_id' => null];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage(), 'provider_id' => null];
+        }
+    }
 }

@@ -160,14 +160,45 @@ class ServiceBooking {
      */
     public function moveBooking($service_book_id, $provider_id) {
         try {
+            $this->conn->beginTransaction();
+            
+            // Update the booking
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET provider_id = ?, serbooking_status = 'waiting' WHERE service_book_id = ? AND serbooking_status = 'pending'");
             $stmt->execute([$provider_id, $service_book_id]);
+            
             if ($stmt->rowCount() > 0) {
+                // Get customer user_id for the notification
+                $customerStmt = $this->conn->prepare("SELECT user_id FROM {$this->table} WHERE service_book_id = ?");
+                $customerStmt->execute([$service_book_id]);
+                $booking = $customerStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($booking) {
+                    // Create notification for provider
+                    $notificationStmt = $this->conn->prepare("
+                        INSERT INTO notification 
+                        (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $notificationStmt->execute([
+                        $booking['user_id'],           // user_id (customer)
+                        $provider_id,                  // provider_id
+                        $service_book_id,              // service_booking_id
+                        null,                          // subscription_booking_id (NULL)
+                        'You have a new service request', // description
+                        'none',                        // customer_action
+                        'active',                      // provider_action
+                        'none'                         // admin_action
+                    ]);
+                }
+                
+                $this->conn->commit();
                 return ['status' => 'success', 'message' => 'Booking moved to provider and set to waiting.'];
             } else {
+                $this->conn->rollBack();
                 return ['status' => 'error', 'message' => 'Booking not found or not pending.'];
             }
         } catch (PDOException $e) {
+            $this->conn->rollBack();
             return ['status' => 'error', 'message' => 'Move failed: ' . $e->getMessage()];
         }
     }
