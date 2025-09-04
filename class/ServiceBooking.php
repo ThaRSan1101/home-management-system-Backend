@@ -39,6 +39,35 @@ class ServiceBooking {
     }
 
     /**
+     * Resolve provider_id for a booking from service_booking or allocation fallback.
+     */
+    private function resolveProviderIdForBooking($service_book_id) {
+        // Try from service_booking table if column exists
+        try {
+            $stmt = $this->conn->prepare("SELECT provider_id FROM {$this->table} WHERE service_book_id = ?");
+            $stmt->execute([$service_book_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && !empty($row['provider_id'])) {
+                return (int)$row['provider_id'];
+            }
+        } catch (PDOException $e) {
+            // Ignore if column does not exist; fallback to allocation
+        }
+        // Fallback: latest allocation record
+        try {
+            $allocStmt = $this->conn->prepare("SELECT provider_id FROM service_provider_allocation WHERE service_book_id = ? ORDER BY allocated_at DESC, allocation_id DESC LIMIT 1");
+            $allocStmt->execute([$service_book_id]);
+            $alloc = $allocStmt->fetch(PDO::FETCH_ASSOC);
+            if ($alloc && !empty($alloc['provider_id'])) {
+                return (int)$alloc['provider_id'];
+            }
+        } catch (PDOException $e) {
+            // No allocation, return null
+        }
+        return null;
+    }
+
+    /**
      * Save a new service booking (after payment confirmation).
      * @param array $data Booking details (service_category_id, user_id, service_date, service_time, service_address, phoneNo, amount)
      * @return array Status and message
@@ -62,6 +91,27 @@ class ServiceBooking {
                 $data['phoneNo'],
                 $data['amount']
             ]);
+            
+            // Get the newly created service booking ID
+            $service_book_id = $this->conn->lastInsertId();
+            
+            // Insert notification for new service booking
+            $notificationStmt = $this->conn->prepare("
+                INSERT INTO notification 
+                (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $notificationStmt->execute([
+                $data['user_id'],           // user_id
+                null,                       // provider_id (NULL)
+                $service_book_id,           // service_booking_id
+                null,                       // subscription_booking_id (NULL)
+                'New service booking',      // description
+                null,                       // customer_action (NULL)
+                null,                       // provider_action (NULL)
+                'active'                    // admin_action
+            ]);
+            
             return ['status' => 'success', 'message' => 'Service booked and pending confirmation.'];
         } catch (PDOException $e) {
             return ['status' => 'error', 'message' => 'Booking failed: ' . $e->getMessage()];
@@ -73,10 +123,88 @@ class ServiceBooking {
      */
     public function cancelBooking($service_book_id, $cancel_reason) {
         try {
+            // Fetch existing booking to infer context (status, user, provider)
+            $fetchStmt = $this->conn->prepare("SELECT user_id, provider_id, serbooking_status FROM {$this->table} WHERE service_book_id = ?");
+            $fetchStmt->execute([$service_book_id]);
+            $existing = $fetchStmt->fetch(PDO::FETCH_ASSOC);
+
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET serbooking_status = 'cancel', cancel_reason = ? WHERE service_book_id = ?");
             $stmt->execute([$cancel_reason, $service_book_id]);
+
+            // If it was in process and a provider can be resolved, create the cancellation notification
+            $resolvedProviderId = $existing ? ($existing['provider_id'] ?? null) : null;
+            if (empty($resolvedProviderId)) {
+                $resolvedProviderId = $this->resolveProviderIdForBooking($service_book_id);
+            }
+            if ($existing && strtolower((string)$existing['serbooking_status']) === 'process' && !empty($resolvedProviderId)) {
+                $notificationStmt = $this->conn->prepare("
+                    INSERT INTO notification 
+                    (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                    VALUES (?, ?, ?, NULL, 'Service booking is canceled', 'active', 'active', 'active')
+                ");
+                $notificationStmt->execute([
+                    $existing['user_id'],
+                    $resolvedProviderId,
+                    $service_book_id
+                ]);
+            }
+
             return ['status' => 'success', 'message' => 'Booking cancelled successfully.'];
         } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Cancellation failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Provider cancels a processing booking. Marks booking as 'cancel' and creates notifications
+     * for customer, provider, and admin with description "Service booking is canceled".
+     *
+     * @param int $service_book_id
+     * @param int $provider_id
+     * @param string $cancel_reason
+     * @return array
+     */
+    public function cancelBookingByProvider($service_book_id, $provider_id, $cancel_reason) {
+        try {
+            $this->conn->beginTransaction();
+
+            // Ensure the booking is currently in process and belongs to this provider
+            $checkStmt = $this->conn->prepare("SELECT user_id, provider_id, serbooking_status FROM {$this->table} WHERE service_book_id = ? FOR UPDATE");
+            $checkStmt->execute([$service_book_id]);
+            $booking = $checkStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$booking) {
+                $this->conn->rollBack();
+                return ['status' => 'error', 'message' => 'Booking not found.'];
+            }
+            if (strtolower($booking['serbooking_status']) !== 'process') {
+                $this->conn->rollBack();
+                return ['status' => 'error', 'message' => 'Only processing bookings can be cancelled by provider.'];
+            }
+            if ((int)$booking['provider_id'] !== (int)$provider_id) {
+                $this->conn->rollBack();
+                return ['status' => 'error', 'message' => 'This booking is not assigned to the provider.'];
+            }
+
+            // Update booking status and reason
+            $updateStmt = $this->conn->prepare("UPDATE {$this->table} SET serbooking_status = 'cancel', cancel_reason = ? WHERE service_book_id = ?");
+            $updateStmt->execute([$cancel_reason, $service_book_id]);
+
+            // Insert notification for cancellation
+            $notificationStmt = $this->conn->prepare("
+                INSERT INTO notification 
+                (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                VALUES (?, ?, ?, NULL, 'Service booking is canceled', 'active', 'active', 'active')
+            ");
+            $notificationStmt->execute([
+                $booking['user_id'],
+                $provider_id,
+                $service_book_id
+            ]);
+
+            $this->conn->commit();
+            return ['status' => 'success', 'message' => 'Booking cancelled and notifications created.'];
+        } catch (PDOException $e) {
+            $this->conn->rollBack();
             return ['status' => 'error', 'message' => 'Cancellation failed: ' . $e->getMessage()];
         }
     }
@@ -139,14 +267,45 @@ class ServiceBooking {
      */
     public function moveBooking($service_book_id, $provider_id) {
         try {
+            $this->conn->beginTransaction();
+            
+            // Update the booking
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET provider_id = ?, serbooking_status = 'waiting' WHERE service_book_id = ? AND serbooking_status = 'pending'");
             $stmt->execute([$provider_id, $service_book_id]);
+            
             if ($stmt->rowCount() > 0) {
+                // Get customer user_id for the notification
+                $customerStmt = $this->conn->prepare("SELECT user_id FROM {$this->table} WHERE service_book_id = ?");
+                $customerStmt->execute([$service_book_id]);
+                $booking = $customerStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($booking) {
+                    // Create notification for provider
+                    $notificationStmt = $this->conn->prepare("
+                        INSERT INTO notification 
+                        (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $notificationStmt->execute([
+                        $booking['user_id'],           // user_id (customer)
+                        $provider_id,                  // provider_id
+                        $service_book_id,              // service_booking_id
+                        null,                          // subscription_booking_id (NULL)
+                        'You have a new service request', // description
+                        'none',                        // customer_action
+                        'active',                      // provider_action
+                        'none'                         // admin_action
+                    ]);
+                }
+                
+                $this->conn->commit();
                 return ['status' => 'success', 'message' => 'Booking moved to provider and set to waiting.'];
             } else {
+                $this->conn->rollBack();
                 return ['status' => 'error', 'message' => 'Booking not found or not pending.'];
             }
         } catch (PDOException $e) {
+            $this->conn->rollBack();
             return ['status' => 'error', 'message' => 'Move failed: ' . $e->getMessage()];
         }
     }
@@ -321,6 +480,20 @@ class ServiceBooking {
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET serbooking_status = 'complete' WHERE service_book_id = ? AND serbooking_status = 'request'");
             $stmt->execute([$service_book_id]);
             if ($stmt->rowCount() > 0) {
+                // Fetch user and provider to generate notifications
+                $fetchStmt = $this->conn->prepare("SELECT user_id FROM {$this->table} WHERE service_book_id = ?");
+                $fetchStmt->execute([$service_book_id]);
+                $row = $fetchStmt->fetch(PDO::FETCH_ASSOC);
+                $userId = $row ? (int)$row['user_id'] : null;
+                $providerId = $this->resolveProviderIdForBooking($service_book_id);
+                if ($userId && $providerId) {
+                    $notificationStmt = $this->conn->prepare("
+                        INSERT INTO notification 
+                        (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                        VALUES (?, ?, ?, NULL, 'Service booking is completed', 'active', 'active', 'active')
+                    ");
+                    $notificationStmt->execute([$userId, $providerId, $service_book_id]);
+                }
                 return ['status' => 'success', 'message' => 'Booking marked as complete.'];
             } else {
                 return ['status' => 'error', 'message' => 'Booking not found or not in request state.'];

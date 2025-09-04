@@ -166,7 +166,28 @@ CREATE TABLE subscription_review (
     FOREIGN KEY (allocation_id) REFERENCES subscription_provider_allocation(allocation_id)
 );
 
--- Step 10: Insert Initial Data
+-- Step 10: Notification System
+-- 10.1 notification
+CREATE TABLE notification (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    provider_id INT NULL,
+    service_booking_id INT NULL,
+    subscription_booking_id INT NULL,
+    description TEXT NOT NULL,
+    customer_action ENUM('none', 'hidden', 'active') DEFAULT 'none',
+    provider_action ENUM('none', 'hidden', 'active') DEFAULT 'none',
+    admin_action ENUM('none', 'hidden', 'active') DEFAULT 'none',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (provider_id) REFERENCES provider(provider_id) ON DELETE SET NULL,
+    FOREIGN KEY (service_booking_id) REFERENCES service_booking(service_book_id) ON DELETE SET NULL,
+    FOREIGN KEY (subscription_booking_id) REFERENCES subscription_booking(subbook_id) ON DELETE SET NULL,
+    INDEX idx_notification_actions (user_id, customer_action, provider_action, admin_action),
+    INDEX idx_notification_references (provider_id, service_booking_id, subscription_booking_id)
+);
+
+-- Step 11: Insert Initial Data
 -- Service Categories
 INSERT INTO service_category (service_name) VALUES
 ('Plumbing Services'),
