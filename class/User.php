@@ -290,6 +290,38 @@ class User {
         $insertStmt = $this->conn->prepare("INSERT INTO users (name, email, password, phone_number, address, NIC, user_type) VALUES (?, ?, ?, ?, ?, ?, ?)");
         $insertStmt->execute([$fullName, $email, $hashedPassword, $phone, $address, $nic, $userType]);
         if ($insertStmt->rowCount() > 0) {
+            $userId = $this->conn->lastInsertId();
+            
+            // Create notification for new customer registration
+            if ($userType === 'customer') {
+                $notificationData = [
+                    'user_id' => $userId,
+                    'description' => 'New customer registered',
+                    'customer_action' => 'none',
+                    'provider_action' => 'none',
+                    'admin_action' => 'active',
+                    'provider_id' => null,
+                    'service_booking_id' => null,
+                    'subscription_booking_id' => null
+                ];
+                
+                $notificationStmt = $this->conn->prepare("
+                    INSERT INTO notification 
+                    (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $notificationStmt->execute([
+                    $notificationData['user_id'],
+                    $notificationData['provider_id'],
+                    $notificationData['service_booking_id'],
+                    $notificationData['subscription_booking_id'],
+                    $notificationData['description'],
+                    $notificationData['customer_action'],
+                    $notificationData['provider_action'],
+                    $notificationData['admin_action']
+                ]);
+            }
+            
             $deleteStmt = $this->conn->prepare("DELETE FROM otp WHERE email = ?");
             $deleteStmt->execute([$email]);
             return ['status' => 'success', 'message' => 'Registration successful!'];
