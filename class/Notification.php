@@ -134,6 +134,28 @@ class Notification {
     }
 
     /**
+     * Get new subscription service booking notifications count for admin.
+     */
+    public function getNewSubscriptionBookingNotificationCount() {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM notification 
+                WHERE description = 'New subscription service booking' AND admin_action = 'active'
+            ");
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'status' => 'success',
+                'count' => (int)$result['count']
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Get customer registration notifications count.
      * Only counts notifications with description = "New customer registered" and admin_action = "active"
      *
@@ -224,6 +246,30 @@ class Notification {
                 WHERE provider_id = ? AND description = 'You have a new service request' AND provider_action = 'active'
             ");
             
+            $stmt->execute([$provider_id]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'status' => 'success',
+                'count' => (int)$result['count']
+            ];
+        } catch (Exception $e) {
+            return ['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Get provider subscription request notifications count.
+     * Only counts notifications with description = "You have a new subscription service request"
+     * and provider_action = "active" for a specific provider.
+     */
+    public function getProviderSubscriptionRequestNotificationCount($provider_id) {
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT COUNT(*) as count
+                FROM notification 
+                WHERE provider_id = ? AND description = 'You have a new subscription service request' AND provider_action = 'active'
+            ");
             $stmt->execute([$provider_id]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -480,7 +526,7 @@ class Notification {
             $stmt = $this->conn->prepare("
                 SELECT notification_id, description, created_at
                 FROM notification
-                WHERE admin_action = 'active' AND description IN ('New service booking', 'Service booking is canceled', 'Service booking is completed')
+                WHERE admin_action = 'active' AND description IN ('New service booking', 'New subscription service booking', 'Service booking is canceled', 'Service booking is completed')
                 ORDER BY notification_id DESC
             ");
             $stmt->execute();
@@ -501,7 +547,7 @@ class Notification {
                 SELECT notification_id, description, created_at
                 FROM notification
                 WHERE provider_id = ? AND provider_action = 'active'
-                AND description IN ('You have a new service request', 'Service booking is canceled', 'Service booking is completed')
+                AND description IN ('You have a new service request', 'You have a new subscription service request', 'Service booking is canceled', 'Service booking is completed')
                 ORDER BY notification_id DESC
             ");
             $stmt->execute([$provider_id]);

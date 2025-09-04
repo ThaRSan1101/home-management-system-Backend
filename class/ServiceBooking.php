@@ -95,21 +95,15 @@ class ServiceBooking {
             // Get the newly created service booking ID
             $service_book_id = $this->conn->lastInsertId();
             
-            // Insert notification for new service booking
+            // Insert notification for new service booking (admin only active)
             $notificationStmt = $this->conn->prepare("
                 INSERT INTO notification 
                 (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, NULL, ?, NULL, 'New service booking', 'none', 'none', 'active')
             ");
             $notificationStmt->execute([
-                $data['user_id'],           // user_id
-                null,                       // provider_id (NULL)
-                $service_book_id,           // service_booking_id
-                null,                       // subscription_booking_id (NULL)
-                'New service booking',      // description
-                null,                       // customer_action (NULL)
-                null,                       // provider_action (NULL)
-                'active'                    // admin_action
+                $data['user_id'],
+                $service_book_id
             ]);
             
             return ['status' => 'success', 'message' => 'Service booked and pending confirmation.'];

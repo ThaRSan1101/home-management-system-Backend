@@ -60,6 +60,15 @@ class SubscriptionBooking {
                 $data['phoneNo'],
                 $data['amount']
             ]);
+            // Insert admin notification for new subscription booking
+            $notificationStmt = $this->conn->prepare("
+                INSERT INTO notification 
+                (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action) 
+                VALUES (?, NULL, NULL, LAST_INSERT_ID(), 'New subscription service booking', 'none', 'none', 'active')
+            ");
+            $notificationStmt->execute([
+                $data['user_id']
+            ]);
             return ['status' => 'success', 'message' => 'Subscription booked and pending confirmation.'];
         } catch (PDOException $e) {
             return ['status' => 'error', 'message' => 'Booking failed: ' . $e->getMessage()];
@@ -162,6 +171,20 @@ class SubscriptionBooking {
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET provider_id = ?, subbooking_status = 'waiting' WHERE subbook_id = ? AND subbooking_status = 'pending'");
             $stmt->execute([$provider_id, $subbook_id]);
             if ($stmt->rowCount() > 0) {
+                // Fetch customer user_id for notification
+                $userStmt = $this->conn->prepare("SELECT user_id FROM {$this->table} WHERE subbook_id = ?");
+                $userStmt->execute([$subbook_id]);
+                $row = $userStmt->fetch(PDO::FETCH_ASSOC);
+                $userId = $row ? (int)$row['user_id'] : null;
+                if ($userId) {
+                    // Create notification for provider
+                    $notif = $this->conn->prepare("
+                        INSERT INTO notification 
+                        (user_id, provider_id, service_booking_id, subscription_booking_id, description, customer_action, provider_action, admin_action)
+                        VALUES (?, ?, NULL, ?, 'You have a new subscription service request', 'none', 'active', 'none')
+                    ");
+                    $notif->execute([$userId, $provider_id, $subbook_id]);
+                }
                 return ['status' => 'success', 'message' => 'Subscription booking moved to provider and set to waiting.'];
             } else {
                 return ['status' => 'error', 'message' => 'Booking not found or not pending.'];

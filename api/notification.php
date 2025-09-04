@@ -41,6 +41,9 @@ try {
     } elseif ($action === 'get_new_service_booking_count') {
         $result = $notificationObj->getNewServiceBookingNotificationCount();
         echo json_encode($result);
+    } elseif ($action === 'get_new_subscription_booking_count') {
+        $result = $notificationObj->getNewSubscriptionBookingNotificationCount();
+        echo json_encode($result);
     } elseif ($action === 'get_customer_registration_count') {
         $result = $notificationObj->getCustomerRegistrationNotificationCount();
         echo json_encode($result);
@@ -74,6 +77,14 @@ try {
             exit;
         }
         $result = $notificationObj->getProviderServiceRequestNotificationCount($provider_id);
+        echo json_encode($result);
+    } elseif ($action === 'get_provider_subscription_request_count') {
+        $provider_id = $_GET['provider_id'] ?? null;
+        if (!$provider_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Provider ID is required.']);
+            exit;
+        }
+        $result = $notificationObj->getProviderSubscriptionRequestNotificationCount($provider_id);
         echo json_encode($result);
     } elseif ($action === 'mark_single_provider_service_request_hidden') {
         $provider_id = $_GET['provider_id'] ?? null;
