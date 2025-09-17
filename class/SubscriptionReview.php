@@ -99,6 +99,33 @@ class SubscriptionReview {
     }
 
     /**
+     * Check if a review already exists for a specific subscription booking.
+     * @param int $subbook_id
+     * @return array Status and whether review exists
+     */
+    public function checkReviewExists($subbook_id) {
+        try {
+            // First check if there's an allocation for this booking
+            $allocStmt = $this->conn->prepare("SELECT allocation_id FROM subscription_provider_allocation WHERE subbook_id = ?");
+            $allocStmt->execute([$subbook_id]);
+            $allocation = $allocStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$allocation) {
+                return ['status' => 'success', 'exists' => false];
+            }
+            
+            // Check if a review exists for this allocation
+            $reviewStmt = $this->conn->prepare("SELECT review_id FROM {$this->table} WHERE allocation_id = ?");
+            $reviewStmt->execute([$allocation['allocation_id']]);
+            $review = $reviewStmt->fetch(PDO::FETCH_ASSOC);
+            
+            return ['status' => 'success', 'exists' => $review ? true : false];
+        } catch (PDOException $e) {
+            return ['status' => 'error', 'message' => 'Failed to check review status: ' . $e->getMessage()];
+        }
+    }
+
+    /**
      * Get all reviews for a specific provider.
      * @param int $provider_id
      * @param int $page

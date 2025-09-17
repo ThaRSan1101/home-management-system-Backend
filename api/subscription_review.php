@@ -41,7 +41,13 @@ try {
             break;
 
         case 'GET':
-            if (isset($_GET['provider_id'])) {
+            if (isset($_GET['check_review']) && isset($_GET['subbook_id'])) {
+                // Check if review exists for a specific subscription booking
+                $subbook_id = intval($_GET['subbook_id']);
+                $result = $subscriptionReview->checkReviewExists($subbook_id);
+                echo json_encode($result);
+                
+            } elseif (isset($_GET['provider_id'])) {
                 // Get reviews for a specific provider
                 $provider_id = intval($_GET['provider_id']);
                 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
