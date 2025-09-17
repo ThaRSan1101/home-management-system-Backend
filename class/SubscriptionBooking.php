@@ -21,6 +21,7 @@
  */
 
 require_once __DIR__ . '/../api/db.php';
+require_once __DIR__ . '/phpmailer.php';
 
 class SubscriptionBooking {
     protected $conn;
@@ -215,14 +216,52 @@ class SubscriptionBooking {
      */
     public function acceptBooking($subbook_id, $provider_id) {
         try {
+            $this->conn->beginTransaction();
             $stmt = $this->conn->prepare("UPDATE {$this->table} SET subbooking_status = 'process' WHERE subbook_id = ? AND provider_id = ? AND subbooking_status = 'waiting'");
             $stmt->execute([$subbook_id, $provider_id]);
-            if ($stmt->rowCount() > 0) {
-                return ['status' => 'success', 'message' => 'Subscription booking accepted.'];
-            } else {
+            if ($stmt->rowCount() === 0) {
+                $this->conn->rollBack();
                 return ['status' => 'error', 'message' => 'Booking not found or not waiting.'];
             }
+            // Fetch details for email
+            $detailStmt = $this->conn->prepare("SELECT u.email AS customer_email, u.name AS customer_name, sp.category AS plan_name, sb.sub_date, sb.sub_time
+                                                FROM {$this->table} sb
+                                                JOIN users u ON sb.user_id = u.user_id
+                                                JOIN subscription_plan sp ON sb.sub_id = sp.sub_id
+                                                WHERE sb.subbook_id = ?");
+            $detailStmt->execute([$subbook_id]);
+            $details = $detailStmt->fetch(PDO::FETCH_ASSOC);
+            $this->conn->commit();
+
+            if ($details && !empty($details['customer_email'])) {
+                $planName = $details['plan_name'] ?? 'Subscription Plan';
+                $subDate = $details['sub_date'] ?? '';
+                $subTime = $details['sub_time'] ?? '';
+                $customerName = $details['customer_name'] ?? '';
+                $subject = 'Your Subscription Request Is Accepted';
+                $body = '<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;border:1px solid #e0e0e0;padding:24px;border-radius:8px;">'
+                    . '<div style="font-size:20px;font-weight:bold;color:#2a4365;margin-bottom:8px;">Home Management System</div>'
+                    . '<div style="font-size:16px;margin-bottom:16px;">Hello, <strong>' . htmlspecialchars($customerName) . '</strong></div>'
+                    . '<div style="margin-bottom:12px;">Your subscription request has been <strong>accepted</strong>. Here are the details:</div>'
+                    . '<div style="font-size:14px;line-height:1.6;margin-bottom:12px;">'
+                    . '<div><strong>Subscription:</strong> ' . htmlspecialchars($planName) . '</div>'
+                    . '<div><strong>Start Date:</strong> ' . htmlspecialchars($subDate) . '</div>'
+                    . '<div><strong>Time:</strong> ' . htmlspecialchars($subTime) . '</div>'
+                    . '</div>'
+                    . '<div style="font-size:12px;color:#555;">We will keep you updated with further progress.</div>'
+                    . '<hr style="margin:24px 0 12px 0;border:none;border-top:1px solid #eee;">'
+                    . '<div style="font-size:12px;color:#999;">If you did not request this, please ignore this email.</div>'
+                    . '</div>';
+                $emailTo = $details['customer_email'];
+                register_shutdown_function(function() use ($emailTo, $subject, $body) {
+                    $mailer = new PHPMailerService();
+                    $mailer->sendMail($emailTo, $subject, $body);
+                });
+            }
+
+            return ['status' => 'success', 'message' => 'Subscription booking accepted.'];
         } catch (PDOException $e) {
+            $this->conn->rollBack();
             return ['status' => 'error', 'message' => 'Accept failed: ' . $e->getMessage()];
         }
     }

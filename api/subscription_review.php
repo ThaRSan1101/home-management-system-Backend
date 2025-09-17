@@ -50,6 +50,14 @@ try {
                 $result = $subscriptionReview->getProviderReviews($provider_id, $page, $limit);
                 echo json_encode($result);
                 
+            } elseif (isset($_GET['subbook_id'])) {
+                // Check if a review exists for a given subscription booking id
+                $subbook_id = intval($_GET['subbook_id']);
+                $stmt = $conn->prepare("SELECT sr.* FROM subscription_review sr JOIN subscription_provider_allocation spa ON sr.allocation_id = spa.allocation_id WHERE spa.subbook_id = ? LIMIT 1");
+                $stmt->execute([$subbook_id]);
+                $data = $stmt->fetch(PDO::FETCH_ASSOC);
+                echo json_encode(['status' => 'success', 'data' => $data]);
+                
             } else {
                 // Get all reviews
                 $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
