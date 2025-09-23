@@ -53,11 +53,11 @@ class PHPMailerService {
         $this->mail->isSMTP();
         $this->mail->Host = 'smtp.gmail.com';
         $this->mail->SMTPAuth = true;
-        $this->mail->Username = 'arultharsan096@gmail.com'; // Your Gmail address
-        $this->mail->Password = 'dwzuvfvwhoitkfkp'; // Your Gmail App Password
+        $this->mail->Username = 'servicehub2509@gmail.com'; // Your Gmail address
+        $this->mail->Password = 'ylwckdezikztneop'; // Your Gmail App Password
         $this->mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $this->mail->Port = 587;
-        $this->mail->setFrom('arultharsan096@gmail.com', 'ServiceHub');
+        $this->mail->setFrom('servicehub2509@gmail.com', 'ServiceHub');
         $this->mail->isHTML(true);
     }
 
