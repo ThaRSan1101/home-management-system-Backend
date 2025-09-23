@@ -2,34 +2,116 @@
 /**
  * ServiceBooking.php
  *
- * Handles service booking logic for customers, including saving and retrieving bookings.
+ * Comprehensive service booking management system for the Home Management System backend.
+ * Handles the complete lifecycle of service bookings from creation to completion.
  *
- * Table: service_booking
+ * PURPOSE:
+ * ========
+ * This class manages all aspects of service bookings including:
+ * - Customer service booking creation and validation
+ * - Provider assignment and allocation management
+ * - Booking status transitions (pending → waiting → process → complete/cancel)
+ * - Notification creation for all stakeholders
+ * - Provider acceptance/decline workflows
+ * - Cancellation handling for customers and providers
+ * - Payment and completion confirmation
  *
- * Fields:
- * - service_book_id (PK)
- * - service_category_id (FK)
- * - user_id (FK)
- * - serbooking_status (ENUM: pending, process, complete, cancel)
- * - serbooking_date (TIMESTAMP)
- * - service_date (DATE)
- * - service_time (TIME)
- * - service_address (TEXT)
- * - phoneNo (VARCHAR)
- * - amount (DECIMAL)
- * - cancel_reason (TEXT)
+ * HOW IT WORKS:
+ * =============
+ * SERVICE BOOKING LIFECYCLE:
+ * 1. Customer creates booking (status: pending)
+ * 2. Admin assigns provider (status: waiting, creates allocation record)
+ * 3. Provider accepts/declines (status: process/pending)
+ * 4. Service is performed
+ * 5. Provider marks complete (status: complete)
+ * 6. Customer accepts/reviews (final completion)
+ *
+ * PROVIDER ALLOCATION SYSTEM:
+ * - service_provider_allocation table tracks provider assignments
+ * - Supports provider reassignment if initial provider declines
+ * - Maintains history of all provider interactions
+ *
+ * NOTIFICATION INTEGRATION:
+ * - Creates notifications for customers, providers, and admins
+ * - Updates notification states based on booking status changes
+ * - Supports role-specific notification visibility
+ *
+ * IMPLEMENTATION STRATEGY:
+ * ========================
+ * - Uses prepared statements for all database operations
+ * - Implements transaction support for data consistency
+ * - Provides comprehensive error handling and logging
+ * - Supports pagination for large result sets
+ * - Maintains referential integrity with related tables
+ *
+ * DATABASE SCHEMA:
+ * ================
+ * service_booking table fields:
+ * - service_book_id: Primary key
+ * - service_category_id: FK to service categories
+ * - user_id: FK to customer
+ * - customer_name: Customer display name
+ * - serbooking_status: ENUM (pending, waiting, process, complete, cancel)
+ * - serbooking_date: Booking creation timestamp
+ * - service_date: Scheduled service date
+ * - service_time: Scheduled service time
+ * - service_address: Service location
+ * - phoneNo: Contact phone number
+ * - amount: Service cost
+ * - service_amount: Final amount (after completion)
+ * - cancel_reason: Reason for cancellation (if applicable)
+ *
+ * service_provider_allocation table:
+ * - allocation_id: Primary key
+ * - service_book_id: FK to service booking
+ * - provider_id: FK to assigned provider
+ * - allocation_status: Current assignment status
+ * - allocated_at: Assignment timestamp
  */
 
 require_once __DIR__ . '/../api/db.php';
 require_once __DIR__ . '/phpmailer.php';
 
+/**
+ * Class ServiceBooking
+ *
+ * Manages service booking operations for customers, providers, and administrators.
+ *
+ * CORE RESPONSIBILITIES:
+ * ======================
+ * - Service booking creation and validation
+ * - Provider assignment and allocation management
+ * - Booking status lifecycle management
+ * - Notification system integration
+ * - Customer and provider workflow support
+ * - Administrative booking management
+ * - Payment and completion processing
+ */
 class ServiceBooking {
     /**
-     * @var PDO $conn
+     * @var PDO $conn Database connection for booking operations
      */
     protected $conn;
+    
+    /**
+     * @var string $table Primary table name for service bookings
+     */
     protected $table = 'service_booking';
 
+    /**
+     * ServiceBooking constructor.
+     *
+     * PURPOSE: Initialize service booking handler with database connection
+     * HOW IT WORKS: Sets up PDO connection for all booking operations
+     * 
+     * @param PDO|null $dbConn Optional database connection
+     * 
+     * IMPLEMENTATION DETAILS:
+     * - Accepts existing connection for performance optimization
+     * - Creates new connection if none provided
+     * - Stores connection for use across all booking methods
+     * - Supports dependency injection for testing
+     */
     public function __construct($dbConn = null) {
         if ($dbConn) {
             $this->conn = $dbConn;
@@ -40,7 +122,28 @@ class ServiceBooking {
     }
 
     /**
-     * Resolve provider_id for a booking from service_booking or allocation fallback.
+     * Resolve provider ID for a booking from multiple data sources.
+     * 
+     * PURPOSE: Find the provider assigned to a service booking across different tables
+     * WHY NEEDED: Provider ID may be stored in service_booking table or allocation table
+     * HOW IT WORKS: Checks service_booking table first, falls back to allocation table
+     * 
+     * IMPLEMENTATION STRATEGY:
+     * 1. Try to get provider_id directly from service_booking table
+     * 2. If not found or column doesn't exist, check allocation table
+     * 3. Return most recent allocation if multiple exist
+     * 4. Return null if no provider assigned
+     * 
+     * BUSINESS LOGIC:
+     * - Supports different database schema versions
+     * - Handles cases where provider_id column may not exist in service_booking
+     * - Uses allocation table as authoritative source for provider assignments
+     * - Orders by allocation timestamp to get most recent assignment
+     * 
+     * @param int $service_book_id The service booking ID to lookup
+     * @return int|null Provider ID if found, null if not assigned
+     * 
+     * USAGE CONTEXT: Internal method used by other booking operations
      */
     private function resolveProviderIdForBooking($service_book_id) {
         // Try from service_booking table if column exists
@@ -54,6 +157,7 @@ class ServiceBooking {
         } catch (PDOException $e) {
             // Ignore if column does not exist; fallback to allocation
         }
+        
         // Fallback: latest allocation record
         try {
             $allocStmt = $this->conn->prepare("SELECT provider_id FROM service_provider_allocation WHERE service_book_id = ? ORDER BY allocated_at DESC, allocation_id DESC LIMIT 1");

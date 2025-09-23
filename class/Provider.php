@@ -44,13 +44,62 @@ class Provider extends User {
     }
 
     /**
-     * Update provider profile (admin or provider action).
+     * Update provider profile with dual-table management and comprehensive validation.
      *
+     * PURPOSE: Enable provider and admin users to update provider profile information
+     * WHY NEEDED: Providers need to maintain current profile info, admins need management capability
+     * HOW IT WORKS: Splits updates between users and provider tables with transaction support
+     * 
+     * BUSINESS LOGIC:
+     * - Updates span two tables: users (basic info) and provider (specialized info)
+     * - Uses database transactions to ensure data consistency
+     * - Validates unique constraints before any updates
+     * - Supports partial updates (only provided fields are changed)
+     * - Maintains referential integrity between tables
+     * 
+     * DUAL-TABLE ARCHITECTURE:
+     * Users Table Updates:
+     * - name: Provider's full name
+     * - email: Contact email address
+     * - phone_number: Contact phone number
+     * - address: Business/service address
+     * - NIC: National identification number
+     * - disable_status: Account status flag
+     * 
+     * Provider Table Updates:
+     * - description: Service description and specialties
+     * - qualifications: Professional qualifications and certifications
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - HTML encoding for all text inputs to prevent XSS
+     * - Prepared statements for SQL injection prevention
+     * - Unique constraint validation for email and NIC
+     * - Transaction rollback on any failure
+     * - Input sanitization and validation
+     * 
+     * VALIDATION WORKFLOW:
+     * 1. Verify user_id is provided
+     * 2. Separate fields for users vs provider tables
+     * 3. Check email uniqueness if email being changed
+     * 4. Check NIC uniqueness if NIC being changed
+     * 5. Begin database transaction
+     * 6. Update users table if fields present
+     * 7. Update provider table if fields present
+     * 8. Commit transaction on success
+     * 9. Rollback on any error
+     * 
+     * TRANSACTION HANDLING:
+     * - Ensures atomicity across both table updates
+     * - Prevents partial updates that could cause data inconsistency
+     * - Automatic rollback on any database error
+     * - Comprehensive error reporting for debugging
+     * 
      * @param array $data Provider data fields (must include user_id)
-     * @return array Status and message
-     *
-     * This method is called by update_provider_profile.php, admin_update_provider.php, etc.
-     * Splits updates between users and provider tables, validates uniqueness, and uses transactions for consistency.
+     *                    Users table: name, email, phone_number, address, NIC/nic, disable_status
+     *                    Provider table: description, qualifications
+     * @return array Status response with success/error and descriptive message
+     * 
+     * USAGE CONTEXT: Called by update_provider_profile.php and admin_update_provider.php
      */
     public function updateProfile($data) {
         $userId = $data['user_id'] ?? null;

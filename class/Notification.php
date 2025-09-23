@@ -2,11 +2,41 @@
 /**
  * Notification.php
  *
- * Simple notification class for admin notification count functionality.
- * Handles creating notifications and getting admin notification count.
+ * Comprehensive notification management system for the Home Management System backend.
+ * Handles all notification operations for customers, providers, and administrators.
+ *
+ * PURPOSE:
+ * ========
+ * This class manages the complete notification lifecycle for different user roles:
+ * - Admin notifications: New registrations, bookings, cancellations, completions
+ * - Provider notifications: Service requests, cancellations, completions
+ * - Customer notifications: Booking updates, service completions, cancellations
+ *
+ * HOW IT WORKS:
+ * =============
+ * Notifications are stored in the 'notification' table with role-specific action fields:
+ * - admin_action: Controls admin notification visibility (active/hidden)
+ * - provider_action: Controls provider notification visibility (active/hidden)
+ * - customer_action: Controls customer notification visibility (active/hidden)
+ *
+ * IMPLEMENTATION STRATEGY:
+ * ========================
+ * 1. Count Methods: Return notification counts for dashboard badges/counters
+ * 2. Hide Methods: Mark notifications as 'hidden' to remove from active lists
+ * 3. Fetch Methods: Retrieve detailed notification data for display
+ * 4. Role-specific Methods: Handle notifications for different user types
+ *
+ * BUSINESS LOGIC:
+ * ===============
+ * - New customer registrations trigger admin notifications
+ * - Service/subscription bookings create notifications for all relevant parties
+ * - Status changes (accept/decline/complete/cancel) update notification states
+ * - Notifications can be hidden individually or in bulk by type
  *
  * Dependencies:
- * - db.php: Database connection
+ * - db.php: Database connection for notification operations
+ *
+ * Used by: notification.php API endpoint, dashboard components, booking workflows
  */
 
 require_once __DIR__ . '/../api/db.php';
@@ -14,11 +44,51 @@ require_once __DIR__ . '/../api/db.php';
 /**
  * Class Notification
  *
- * Simple notification handler for admin dashboard.
+ * Manages notification operations across all user roles in the Home Management System.
+ *
+ * CORE FUNCTIONALITY:
+ * ===================
+ * - Customer registration notifications for admins
+ * - Service booking request notifications
+ * - Subscription booking request notifications  
+ * - Booking status change notifications (accept/decline/complete/cancel)
+ * - Role-based notification visibility management
+ * - Notification counting for dashboard indicators
+ * - Detailed notification fetching for user interfaces
+ *
+ * DATABASE SCHEMA:
+ * ================
+ * notification table fields:
+ * - notification_id: Primary key
+ * - user_id: Customer who triggered the notification
+ * - provider_id: Provider involved (if applicable)
+ * - service_booking_id: Related service booking (if applicable)
+ * - subscription_booking_id: Related subscription booking (if applicable)
+ * - description: Human-readable notification message
+ * - customer_action: Customer notification state (active/hidden/none)
+ * - provider_action: Provider notification state (active/hidden/none)
+ * - admin_action: Admin notification state (active/hidden/none)
+ * - created_at: Notification timestamp
  */
 class Notification {
+    /**
+     * @var PDO $conn Database connection for notification operations
+     */
     protected $conn;
     
+    /**
+     * Notification constructor.
+     *
+     * PURPOSE: Initialize the notification handler with database connection
+     * HOW IT WORKS: Sets up PDO connection either from provided parameter or creates new one
+     * 
+     * @param PDO|null $dbConn Optional database connection
+     * 
+     * IMPLEMENTATION DETAILS:
+     * - If connection provided: Use it directly for performance
+     * - If no connection: Create new DBConnector instance for database access
+     * - Stores connection in protected property for use by all notification methods
+     */
     public function __construct($dbConn = null) {
         if ($dbConn) {
             $this->conn = $dbConn;
@@ -31,11 +101,27 @@ class Notification {
 
 
     /**
-     * Mark only customer registration notifications as hidden.
-     * This method specifically targets notifications with description = "New customer registered"
-     * and leaves service booking notifications unaffected.
-     *
-     * @return array Status and message
+     * Mark customer registration notifications as hidden for admin users.
+     * 
+     * PURPOSE: Clean up admin dashboard by hiding processed customer registration notifications
+     * WHY NEEDED: Admins need to acknowledge new registrations but shouldn't see them forever
+     * HOW IT WORKS: Updates admin_action field from 'active' to 'hidden' for registration notifications
+     * 
+     * BUSINESS LOGIC:
+     * - Only targets notifications with description = "New customer registered"
+     * - Leaves service booking notifications unaffected
+     * - Uses specific WHERE clause to avoid affecting other notification types
+     * - Returns count of affected rows for confirmation
+     * 
+     * IMPLEMENTATION STRATEGY:
+     * - Uses prepared statement for security
+     * - Filters by exact description match to avoid unintended updates
+     * - Only updates admin_action field, preserving other role actions
+     * - Returns detailed feedback including number of notifications hidden
+     * 
+     * @return array Status response with success/error and affected row count
+     * 
+     * USAGE CONTEXT: Called when admin wants to clear customer registration notifications
      */
     public function markCustomerRegistrationNotificationsAsHidden() {
         try {
@@ -58,9 +144,27 @@ class Notification {
     }
 
     /**
-     * Get pending service booking count.
+     * Get count of pending service bookings for admin dashboard.
      *
-     * @return array Status and count
+     * PURPOSE: Provide real-time count of service bookings awaiting admin attention
+     * WHY NEEDED: Admin dashboard needs to show pending work items for prioritization
+     * HOW IT WORKS: Queries service_booking table for records with 'pending' status
+     * 
+     * BUSINESS LOGIC:
+     * - Counts only bookings with serbooking_status = 'pending'
+     * - Pending bookings require admin assignment to providers
+     * - Used for dashboard badges and priority indicators
+     * - Returns integer count for UI display
+     * 
+     * IMPLEMENTATION DETAILS:
+     * - Uses COUNT(*) for efficient counting without data retrieval
+     * - Prepared statement prevents SQL injection
+     * - Casts result to integer for consistent data type
+     * - Error handling returns meaningful message for debugging
+     * 
+     * @return array Status response with count or error message
+     * 
+     * USAGE CONTEXT: Called by admin dashboard to show pending service booking count
      */
     public function getPendingServiceBookingCount() {
         try {

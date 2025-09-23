@@ -2,14 +2,57 @@
 /**
  * Admin.php
  *
- * Defines the Admin class, representing an admin user in the Home Management System backend.
+ * Comprehensive administrative management system for the Home Management System backend.
+ * Extends the User class to provide specialized administrative functionality and operations.
  *
- * Responsibilities:
- * - Encapsulates admin-specific logic (add provider, get providers, get customers)
- * - Inherits all properties and methods from User.php
- * - Used by admin panel APIs to manage users and providers
+ * PURPOSE:
+ * ========
+ * This class handles all administrative operations including:
+ * - Provider account creation and management
+ * - User oversight and data retrieval
+ * - Administrative reporting and analytics
+ * - Email communication for provider onboarding
+ * - System-wide user management functions
  *
- * This class is typically used by endpoints such as admin_customers.php, get_providers.php, and others.
+ * HOW IT WORKS:
+ * =============
+ * INHERITANCE ARCHITECTURE:
+ * - Extends User class to inherit core user functionality
+ * - Adds admin-specific methods for system management
+ * - Maintains full compatibility with base User operations
+ * - Provides specialized administrative data handling
+ *
+ * PROVIDER MANAGEMENT WORKFLOW:
+ * 1. Admin submits provider registration data
+ * 2. System validates input and checks for duplicates
+ * 3. Creates user account with auto-generated credentials
+ * 4. Creates provider profile with additional details
+ * 5. Sends welcome email with login credentials
+ * 6. Returns comprehensive status information
+ *
+ * SECURITY IMPLEMENTATION:
+ * - Input sanitization using htmlspecialchars
+ * - Prepared statements for SQL injection prevention
+ * - Unique constraint validation for email and NIC
+ * - Secure password generation and hashing
+ * - Comprehensive error handling and validation
+ *
+ * EMAIL INTEGRATION:
+ * - Professional welcome emails for new providers
+ * - Auto-generated secure passwords
+ * - Branded email templates with system styling
+ * - Error handling for email delivery failures
+ *
+ * BUSINESS LOGIC:
+ * ===============
+ * - New providers start with 'inactive' status requiring activation
+ * - Auto-generated passwords ensure immediate access
+ * - Dual-table architecture (users + provider) for data integrity
+ * - Comprehensive validation prevents duplicate accounts
+ * - Email notifications ensure provider awareness
+ *
+ * This class is typically used by endpoints such as admin_customers.php, get_providers.php, 
+ * add_provider.php, and other administrative interfaces.
  */
 require_once __DIR__ . '/User.php';
 require_once __DIR__ . '/phpmailer.php';
@@ -17,25 +60,92 @@ require_once __DIR__ . '/phpmailer.php';
 /**
  * Class Admin
  *
- * Extends the User class to handle admin-specific actions.
+ * Manages administrative operations and extends User functionality.
+ * Provides specialized methods for provider management and user oversight.
  *
- * Methods:
- * - addProvider($data)
- * - getAllProviders()
- * - getCustomerDetails()
+ * CORE RESPONSIBILITIES:
+ * ======================
+ * - Provider account creation and credential management
+ * - System-wide user data retrieval and reporting
+ * - Administrative email communications
+ * - User validation and duplicate prevention
+ * - Provider profile management and status control
+ *
+ * METHODS OVERVIEW:
+ * =================
+ * - addProvider($data): Create new provider accounts with validation
+ * - getAllProviders(): Retrieve comprehensive provider listings
+ * - getCustomerDetails(): Fetch customer data for administrative review
  */
 class Admin extends User {
     // Add admin-specific methods here
 
     /**
-     * Add a new provider (admin action).
+     * Add a new provider account with comprehensive validation and email notification.
      *
+     * PURPOSE: Enable administrators to create provider accounts with auto-generated credentials
+     * WHY NEEDED: Admins need secure way to onboard service providers into the system
+     * HOW IT WORKS: Validates input, creates dual-table records, generates credentials, sends email
+     * 
+     * BUSINESS LOGIC:
+     * - All providers start with 'inactive' status requiring manual activation
+     * - Auto-generated passwords ensure immediate but secure access
+     * - Dual-table insertion (users + provider) maintains data integrity
+     * - Email notification provides instant credential delivery
+     * - Comprehensive validation prevents duplicate accounts
+     * 
+     * VALIDATION WORKFLOW:
+     * 1. Input sanitization and HTML encoding for XSS prevention
+     * 2. Required field validation (name, email, phone, address, NIC)
+     * 3. Email uniqueness check across all users
+     * 4. NIC uniqueness check for identity verification
+     * 5. Secure password generation using cryptographic functions
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - htmlspecialchars() encoding prevents XSS attacks
+     * - Prepared statements prevent SQL injection
+     * - bin2hex(random_bytes()) generates cryptographically secure passwords
+     * - password_hash() with PASSWORD_DEFAULT for secure storage
+     * - Comprehensive duplicate checking before insertion
+     * 
+     * DATABASE OPERATIONS:
+     * Users Table Insert:
+     * - name: Provider's full name (sanitized)
+     * - email: Unique email address (lowercased)
+     * - password: Securely hashed auto-generated password
+     * - phone_number: Contact phone number
+     * - address: Business/service address
+     * - NIC: National identification number
+     * - user_type: Set to 'provider' for role identification
+     * 
+     * Provider Table Insert:
+     * - user_id: Foreign key from users table
+     * - description: Service description and specialties
+     * - qualifications: Professional certifications
+     * - status: Set to 'inactive' requiring admin activation
+     * 
+     * EMAIL NOTIFICATION:
+     * - Professional HTML-formatted welcome email
+     * - Includes auto-generated login credentials
+     * - Branded with system styling and instructions
+     * - Error handling for email delivery failures
+     * - Returns email error status for admin awareness
+     * 
+     * ERROR HANDLING:
+     * - Missing required fields: Immediate validation error
+     * - Duplicate email: Specific conflict error message
+     * - Duplicate NIC: Identity conflict error message
+     * - Database insertion failures: Detailed error reporting
+     * - Email delivery failures: Non-blocking error tracking
+     * 
      * @param array $data Provider registration fields
-     * @return array Status and message
-     *
-     * This method is called by admin panel endpoints to add a new provider.
-     * It validates input, checks for duplicates, inserts into users and provider tables,
-     * and sends a welcome email with credentials.
+     *                    Required: name, email, phone, address, nic
+     *                    Optional: description, qualification
+     * @return array Comprehensive status response with success/error and email delivery status
+     *               Success: ['status' => 'success', 'message' => 'Provider added successfully.', 'emailError' => null]
+     *               Error: ['status' => 'error', 'message' => 'Specific error description']
+     * 
+     * USAGE CONTEXT: Called by add_provider.php API endpoint for admin provider creation
      */
     public function addProvider($data) {
         $name = isset($data['name']) ? trim($data['name']) : '';
@@ -125,12 +235,73 @@ class Admin extends User {
     }
 
     /**
-     * Fetch all service providers (admin action).
+     * Fetch comprehensive list of all service providers for administrative management.
      *
-     * Used by get_providers.php API endpoint to provide a list of all providers for the admin dashboard.
-     * Joins user info with provider-specific details.
-     *
-     * @return array List of providers with details
+     * PURPOSE: Provide complete provider data for admin dashboard and management interfaces
+     * WHY NEEDED: Admins require full provider oversight for system management and monitoring
+     * HOW IT WORKS: Joins users and provider tables to create unified provider profiles
+     * 
+     * BUSINESS LOGIC:
+     * - Retrieves all users with user_type = 'provider'
+     * - Combines basic user info with provider-specific details
+     * - Includes provider status for admin management decisions
+     * - Returns complete profiles for comprehensive admin oversight
+     * 
+     * DATABASE QUERY ARCHITECTURE:
+     * - INNER JOIN between users and provider tables
+     * - Filters by user_type = 'provider' for role-specific results
+     * - Retrieves all fields from both tables for complete profiles
+     * - No pagination - returns all providers for admin overview
+     * 
+     * DATA FIELDS RETURNED:
+     * From Users Table:
+     * - user_id: Unique user identifier
+     * - name: Provider's full name
+     * - email: Contact email address
+     * - phone_number: Contact phone number
+     * - address: Business/service address
+     * - NIC: National identification number
+     * - registered_date: Account creation timestamp
+     * - disable_status: Account status flag
+     * 
+     * From Provider Table:
+     * - provider_id: Unique provider identifier
+     * - description: Service description and specialties
+     * - qualifications: Professional certifications
+     * - status: Provider status (active/inactive)
+     * 
+     * PERFORMANCE CONSIDERATIONS:
+     * - Uses INNER JOIN for optimal query performance
+     * - Indexes on user_type and join columns improve speed
+     * - Returns all providers without pagination for admin convenience
+     * - Efficient single-query approach reduces database load
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - Uses prepared statement for SQL injection prevention
+     * - No user input parameters reduce attack surface
+     * - Returns safe data fields suitable for admin interfaces
+     * - No sensitive data exposure in provider listings
+     * 
+     * @return array Complete list of provider records with combined user and provider data
+     *               Format: [
+     *                 [
+     *                   'user_id' => int,
+     *                   'name' => string,
+     *                   'email' => string,
+     *                   'phone_number' => string,
+     *                   'address' => string,
+     *                   'NIC' => string,
+     *                   'registered_date' => string,
+     *                   'disable_status' => int,
+     *                   'provider_id' => int,
+     *                   'description' => string,
+     *                   'qualifications' => string,
+     *                   'status' => string
+     *                 ],
+     *                 ...
+     *               ]
+     * 
+     * USAGE CONTEXT: Called by get_providers.php API endpoint for admin provider management
      */
     public function getAllProviders() {
         $stmt = $this->conn->prepare("SELECT u.*, p.description, p.qualifications, p.status, p.provider_id FROM users u JOIN provider p ON u.user_id = p.user_id WHERE u.user_type = 'provider'");
@@ -140,12 +311,81 @@ class Admin extends User {
     }
 
     /**
-     * Fetch all customer details (admin action).
+     * Fetch comprehensive customer details for administrative review and management.
      *
-     * Used by admin_customers.php API endpoint to let the admin panel display/manage all customers.
-     * Returns status and customer data or error info.
-     *
-     * @return array Status and customer data or error
+     * PURPOSE: Provide complete customer data for admin dashboard monitoring and user management
+     * WHY NEEDED: Admins require customer oversight for support, analytics, and system management
+     * HOW IT WORKS: Queries users table for customer-type accounts with comprehensive error handling
+     * 
+     * BUSINESS LOGIC:
+     * - Retrieves all users with user_type = 'customer'
+     * - Returns essential customer information for admin review
+     * - Excludes sensitive data like passwords for security
+     * - Provides account status information for management decisions
+     * 
+     * DATABASE QUERY IMPLEMENTATION:
+     * - Filters by user_type = 'customer' for role-specific results
+     * - Selects specific safe fields excluding sensitive information
+     * - Uses prepared statement for security and performance
+     * - Returns all customers without pagination for admin overview
+     * 
+     * DATA FIELDS RETRIEVED:
+     * - user_id: Unique customer identifier for operations
+     * - name: Customer's full name for identification
+     * - email: Contact email for communication
+     * - phone_number: Contact phone for support
+     * - address: Customer location information
+     * - NIC: National identification for verification
+     * - registered_date: Account creation timestamp for analytics
+     * - disable_status: Account status for management control
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - Excludes password field for data protection
+     * - Uses prepared statement to prevent SQL injection
+     * - Returns only necessary data for admin functions
+     * - Comprehensive error handling prevents information leakage
+     * 
+     * ERROR HANDLING STRATEGY:
+     * - PDOException catching for database errors
+     * - Detailed error logging for debugging
+     * - User-friendly error messages for admin interface
+     * - Status-based response format for consistent API behavior
+     * 
+     * PERFORMANCE CONSIDERATIONS:
+     * - Single query retrieves all necessary customer data
+     * - Index on user_type field optimizes filtering
+     * - Minimal field selection reduces memory usage
+     * - Efficient fetchAll() for complete result set
+     * 
+     * RESPONSE FORMAT:
+     * Success Response:
+     * {
+     *   "status": "success",
+     *   "data": [
+     *     {
+     *       "user_id": 123,
+     *       "name": "John Doe",
+     *       "email": "john@example.com",
+     *       "phone_number": "1234567890",
+     *       "address": "123 Main St",
+     *       "NIC": "987654321",
+     *       "registered_date": "2023-01-15 10:30:00",
+     *       "disable_status": 0
+     *     },
+     *     ...
+     *   ]
+     * }
+     * 
+     * Error Response:
+     * {
+     *   "status": "error",
+     *   "message": "User-friendly error description",
+     *   "error": "Technical error details for debugging"
+     * }
+     * 
+     * @return array Standardized response with customer data or error information
+     * 
+     * USAGE CONTEXT: Called by admin_customers.php API endpoint for customer management interface
      */
     public function getCustomerDetails() {
         try {

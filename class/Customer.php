@@ -2,25 +2,69 @@
 /**
  * Customer.php
  *
- * Defines the Customer class, which represents a customer user in the Home Management System backend.
+ * Comprehensive customer management system for the Home Management System backend.
+ * Extends the User class to provide customer-specific functionality and operations.
  *
- * Responsibilities:
- * - Encapsulates all customer-specific logic and data updates
- * - Inherits all properties and methods from User.php
- * - Used by admin APIs to update customer profiles securely
+ * PURPOSE:
+ * ========
+ * This class handles all customer-specific operations including:
+ * - Customer profile management and updates
+ * - Administrative customer data modifications
+ * - Customer account status management
+ * - Validation and security for customer data
  *
- * This class is typically used by endpoints such as admin_update_customer.php.
+ * HOW IT WORKS:
+ * =============
+ * INHERITANCE STRUCTURE:
+ * - Extends User class to inherit core user functionality
+ * - Adds customer-specific methods and validation logic
+ * - Maintains compatibility with base User operations
+ * - Provides specialized customer data handling
+ *
+ * PROFILE UPDATE WORKFLOW:
+ * 1. Validate required user_id parameter
+ * 2. Process and sanitize input fields
+ * 3. Check for unique constraints (email, NIC)
+ * 4. Execute database update with prepared statements
+ * 5. Return comprehensive status response
+ *
+ * SECURITY FEATURES:
+ * - Input sanitization using htmlspecialchars
+ * - Prepared statements for SQL injection prevention
+ * - Unique constraint validation for email and NIC
+ * - User existence verification before updates
+ * - Admin-only access control for profile modifications
+ *
+ * IMPLEMENTATION STRATEGY:
+ * ========================
+ * - Dynamic field building based on provided data
+ * - Comprehensive error handling and validation
+ * - Support for partial updates (only provided fields)
+ * - Graceful handling of database errors
+ * - Detailed response messages for debugging
+ *
+ * Used by: admin_update_customer.php API endpoint, customer management interfaces
  */
 require_once __DIR__ . '/User.php';
 
 /**
  * Class Customer
  *
- * Extends the User class to handle customer-specific actions.
+ * Manages customer-specific operations and profile management.
+ * Extends User class to provide specialized customer functionality.
  *
- * Methods:
- * - __construct($dbConn = null)
- * - updateProfile($data)
+ * CORE RESPONSIBILITIES:
+ * ======================
+ * - Customer profile updates and modifications
+ * - Administrative customer account management
+ * - Customer data validation and sanitization
+ * - Unique constraint enforcement (email, NIC)
+ * - Customer account status management
+ *
+ * METHODS OVERVIEW:
+ * =================
+ * - __construct($dbConn = null): Initialize with database connection
+ * - updateProfile($data): Update customer profile with validation
  */
 class Customer extends User {
     /**
@@ -33,13 +77,53 @@ class Customer extends User {
     }
 
     /**
-     * Update customer profile (admin action).
+     * Update customer profile with comprehensive validation and security measures.
      *
+     * PURPOSE: Allow administrators to update customer profile information safely
+     * WHY NEEDED: Admins need ability to modify customer data for support and management
+     * HOW IT WORKS: Validates input, checks constraints, builds dynamic SQL, executes update
+     * 
+     * BUSINESS LOGIC:
+     * - Only updates fields that are provided and non-empty
+     * - Maintains data integrity with unique constraint validation
+     * - Supports partial updates without affecting other fields
+     * - Provides detailed feedback for success and error cases
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - HTML special character encoding to prevent XSS
+     * - Prepared statements to prevent SQL injection
+     * - Unique constraint validation for email and NIC
+     * - User existence verification before update
+     * - Input sanitization and validation
+     * 
+     * FIELD PROCESSING:
+     * - name: Trimmed and HTML-encoded full name
+     * - email: Lowercased, trimmed, and HTML-encoded
+     * - phone_number: Trimmed and HTML-encoded contact number
+     * - address: Trimmed and HTML-encoded physical address
+     * - NIC/nic: Trimmed and HTML-encoded national ID (supports both cases)
+     * - disable_status: Integer flag for account status
+     * 
+     * VALIDATION CHECKS:
+     * 1. user_id is required and must be provided
+     * 2. At least one field must be provided for update
+     * 3. Email uniqueness check (if email being changed)
+     * 4. NIC uniqueness check (if NIC being changed)
+     * 5. User existence verification
+     * 
+     * ERROR HANDLING:
+     * - Missing user_id: Returns error immediately
+     * - No fields to update: Returns appropriate error message
+     * - Duplicate email: Returns specific error about email conflict
+     * - Duplicate NIC: Returns specific error about NIC conflict
+     * - User not found: Returns user not found error
+     * - Database errors: Returns database error with exception message
+     * 
      * @param array $data Customer data fields (must include user_id)
-     * @return array Status and message
-     *
-     * This method is called by admin_update_customer.php to update a customer's profile.
-     * Performs field validation, uniqueness checks, and updates the database.
+     *                    Supported fields: name, email, phone_number, address, NIC/nic, disable_status
+     * @return array Status response with success/error and descriptive message
+     * 
+     * USAGE CONTEXT: Called by admin_update_customer.php API endpoint
      */
     public function updateProfile($data) {
         // Extract and validate user_id

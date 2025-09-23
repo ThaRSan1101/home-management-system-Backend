@@ -45,12 +45,32 @@ require_once __DIR__ . '/phpmailer.php';
 class User {
     // ...
     /**
-     * Fetch user details by user ID.
+     * Fetch user details by user ID with comprehensive data retrieval.
      *
-     * @param int $userId
-     * @return array|false User data or false if not found
-     *
-     * Used by admin panels or profile endpoints to retrieve user info.
+     * PURPOSE: Retrieve complete user profile information for display and processing
+     * WHY NEEDED: Admin panels, profile pages, and user management require user data
+     * HOW IT WORKS: Queries users table with specific user_id and returns safe fields
+     * 
+     * SECURITY IMPLEMENTATION:
+     * - Excludes password field from results for security
+     * - Uses prepared statement to prevent SQL injection
+     * - Returns only essential user information
+     * - Suitable for public-facing profile displays
+     * 
+     * DATA FIELDS RETURNED:
+     * - user_id: Unique user identifier
+     * - email: User's email address
+     * - user_type: Role (customer/provider/admin)
+     * - name: User's full name
+     * - phone_number: Contact phone
+     * - address: Physical address
+     * - registered_date: Account creation date
+     * - NIC: National ID number
+     * 
+     * @param int $userId The unique identifier of the user to retrieve
+     * @return array|false User data array if found, false if user doesn't exist
+     * 
+     * USAGE CONTEXT: Called by profile endpoints, admin panels, and user management functions
      */
     public function getUserById($userId) {
         $stmt = $this->conn->prepare("SELECT user_id, email, user_type, name, phone_number, address, registered_date, NIC FROM users WHERE user_id = ?");
@@ -69,7 +89,18 @@ class User {
     /**
      * User constructor.
      *
-     * @param PDO|null $dbConn Optional PDO connection. If not provided, a new connection is created.
+     * PURPOSE: Initialize the User class with database connection for all user operations
+     * HOW IT WORKS: Sets up PDO connection either from provided parameter or creates new one
+     * 
+     * @param PDO|null $dbConn Optional database connection for dependency injection
+     * 
+     * IMPLEMENTATION DETAILS:
+     * - Supports dependency injection for testing and performance optimization
+     * - Creates new DBConnector instance if no connection provided
+     * - Stores connection in protected property for inheritance by subclasses
+     * - Enables connection reuse across multiple User operations
+     * 
+     * USAGE CONTEXT: Called when creating User, Admin, Customer, or Provider instances
      */
     public function __construct($dbConn = null) {
         if ($dbConn) {

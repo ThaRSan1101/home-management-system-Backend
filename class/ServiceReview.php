@@ -2,30 +2,107 @@
 /**
  * ServiceReview.php
  *
- * Handles service review logic for customers after service completion.
+ * Comprehensive service review management system for the Home Management System backend.
+ * Handles the complete lifecycle of customer reviews after service completion.
  *
- * Table: service_review
+ * PURPOSE:
+ * ========
+ * This class manages all aspects of service reviews including:
+ * - Customer review creation and validation after service completion
+ * - Provider review aggregation and rating calculations
+ * - Review retrieval with pagination for different user roles
+ * - Landing page review display with sample data fallback
+ * - Review-based analytics and reporting functionality
  *
- * Fields:
- * - review_id (PK)
- * - allocation_id (FK)
- * - provider_name (VARCHAR)
- * - service_name (VARCHAR)
- * - amount (DECIMAL)
- * - rating (INT 1-5)
- * - feedback_text (TEXT)
- * - reviewed_at (TIMESTAMP)
+ * HOW IT WORKS:
+ * =============
+ * SERVICE REVIEW LIFECYCLE:
+ * 1. Customer completes service and accepts provider work
+ * 2. System enables review submission linked to allocation
+ * 3. Customer submits rating (1-5) and feedback text
+ * 4. Review is stored with service and provider information
+ * 5. Reviews become available for provider ratings and public display
+ *
+ * ALLOCATION INTEGRATION:
+ * - Reviews link to service_provider_allocation records
+ * - Ensures reviews connect to specific service instances
+ * - Prevents duplicate reviews for same service
+ * - Maintains referential integrity with booking system
+ *
+ * RATING SYSTEM:
+ * - 1-5 star rating scale for standardized feedback
+ * - Average rating calculations for provider profiles
+ * - Review count tracking for statistical significance
+ * - Comprehensive review data for decision making
+ *
+ * IMPLEMENTATION STRATEGY:
+ * ========================
+ * - Uses allocation_id as primary link to service instances
+ * - Implements duplicate prevention for review integrity
+ * - Provides paginated retrieval for performance
+ * - Supports multiple data views (provider, admin, public)
+ * - Includes sample data for demo/testing purposes
+ *
+ * DATABASE SCHEMA INTEGRATION:
+ * =============================
+ * service_review table fields:
+ * - review_id: Primary key for unique review identification
+ * - allocation_id: FK to service_provider_allocation for service linking
+ * - provider_name: Provider name at time of review (denormalized)
+ * - service_name: Service name at time of review (denormalized)
+ * - amount: Final service amount for review context
+ * - rating: Customer satisfaction rating (1-5 scale)
+ * - feedback_text: Detailed customer feedback and comments
+ * - reviewed_at: Review submission timestamp
+ *
+ * SECURITY AND VALIDATION:
+ * - Input sanitization and validation for all review data
+ * - Duplicate prevention based on allocation_id
+ * - Rating range validation (1-5 scale)
+ * - Prepared statements for SQL injection prevention
  */
 
 require_once __DIR__ . '/../api/db.php';
 
+/**
+ * Class ServiceReview
+ *
+ * Manages service review operations for customers, providers, and administrators.
+ *
+ * CORE RESPONSIBILITIES:
+ * ======================
+ * - Service review creation and validation
+ * - Provider rating aggregation and statistics
+ * - Review retrieval with multiple filtering options
+ * - Landing page review display management
+ * - Review-based analytics and reporting
+ * - Duplicate prevention and data integrity
+ */
 class ServiceReview {
     /**
-     * @var PDO $conn
+     * @var PDO $conn Database connection for review operations
      */
     protected $conn;
+    
+    /**
+     * @var string $table Primary table name for service reviews
+     */
     protected $table = 'service_review';
 
+    /**
+     * ServiceReview constructor.
+     *
+     * PURPOSE: Initialize service review handler with database connection
+     * HOW IT WORKS: Sets up PDO connection for all review operations
+     * 
+     * @param PDO|null $dbConn Optional database connection for dependency injection
+     * 
+     * IMPLEMENTATION DETAILS:
+     * - Accepts existing connection for performance optimization
+     * - Creates new connection if none provided via DBConnector
+     * - Stores connection for use across all review methods
+     * - Supports dependency injection for testing and optimization
+     */
     public function __construct($dbConn = null) {
         if ($dbConn) {
             $this->conn = $dbConn;
@@ -36,9 +113,57 @@ class ServiceReview {
     }
 
     /**
-     * Save a new service review after customer accepts the completed service.
-     * @param array $data Review details (allocation_id, provider_name, service_name, amount, rating, feedback_text)
-     * @return array Status and message
+     * Save a new service review with comprehensive validation and duplicate prevention.
+     *
+     * PURPOSE: Enable customers to submit reviews after service completion with full validation
+     * WHY NEEDED: Reviews provide feedback mechanism and help other customers make informed decisions
+     * HOW IT WORKS: Validates input, checks for duplicates, stores review with service context
+     * 
+     * BUSINESS LOGIC:
+     * - Reviews can only be submitted once per service allocation
+     * - Rating must be within 1-5 range for standardization
+     * - All required fields must be provided for complete reviews
+     * - Reviews permanently link to specific service instances
+     * - Stores provider and service names for historical context
+     * 
+     * VALIDATION WORKFLOW:
+     * 1. Required field validation for completeness
+     * 2. Rating range validation (1-5 scale)
+     * 3. Duplicate review check based on allocation_id
+     * 4. Database insertion with comprehensive error handling
+     * 5. Return review_id for confirmation and tracking
+     * 
+     * DUPLICATE PREVENTION STRATEGY:
+     * - Checks existing reviews by allocation_id before insertion
+     * - Prevents multiple reviews for same service instance
+     * - Maintains review integrity and prevents abuse
+     * - Returns specific error message for duplicate attempts
+     * 
+     * DATA INTEGRITY MEASURES:
+     * - All required fields validated before processing
+     * - Rating constrained to valid 1-5 range
+     * - allocation_id ensures proper service linking
+     * - Timestamp automatically set to current time
+     * 
+     * ERROR HANDLING:
+     * - Missing required fields: Specific field identification
+     * - Invalid rating range: Clear validation message
+     * - Duplicate review attempt: Informative duplicate error
+     * - Database errors: Technical error with exception details
+     * 
+     * @param array $data Review details with required fields
+     *                    Required fields:
+     *                    - allocation_id: Links review to specific service instance
+     *                    - provider_name: Provider name for review context
+     *                    - service_name: Service name for review context
+     *                    - amount: Final service amount for reference
+     *                    - rating: Customer satisfaction rating (1-5)
+     *                    - feedback_text: Detailed customer feedback
+     * @return array Status response with success/error and review_id on success
+     *               Success: ['status' => 'success', 'message' => 'Review saved successfully.', 'review_id' => int]
+     *               Error: ['status' => 'error', 'message' => 'Specific error description']
+     * 
+     * USAGE CONTEXT: Called by service_review.php API endpoint after service completion
      */
     public function saveReview($data) {
         $required = ['allocation_id', 'provider_name', 'service_name', 'amount', 'rating', 'feedback_text'];
